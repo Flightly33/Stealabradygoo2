@@ -258,6 +258,28 @@ local function buildFace(head, faceId)
 	return gui
 end
 
+-- ViewportFrames cannot draw SurfaceGuis, so preview models (wardrobe,
+-- inspect window) get a simple face made of thin parts instead.
+local function buildPreviewFace(ctx, faceId)
+	local def = FACES[faceId] or FACES.Kid
+	local head, H = ctx.parts.Head, ctx.d.H
+	local z = -(H / 2 + 0.012)
+	local eyeColor = rgb(28, 28, 32)
+	for _, x in ipairs({ -0.2, 0.2 }) do
+		add(ctx, head, "FaceEye", v3(def.eye[1] * H, def.eye[2] * H, 0.03), v3(x * H, (0.5 - def.eyeY) * H, z), eyeColor)
+	end
+	local mouthW = (def.mouth == "o" and 0.13) or (def.mouth == "line" and 0.16) or 0.28
+	local mouthH = (def.mouth == "o" and 0.13) or (def.mouth == "grin" and 0.14) or 0.05
+	add(ctx, head, "FaceMouth", v3(mouthW * H, mouthH * H, 0.03), v3(0, -0.2 * H, z), rgb(60, 20, 24))
+	if def.blush then
+		add(ctx, head, "FaceBlush", v3(0.16 * H, 0.09 * H, 0.03), v3(-0.33 * H, -0.1 * H, z), rgb(255, 150, 160))
+		add(ctx, head, "FaceBlush", v3(0.16 * H, 0.09 * H, 0.03), v3(0.33 * H, -0.1 * H, z), rgb(255, 150, 160))
+	end
+	if def.mustache then
+		add(ctx, head, "FaceMustache", v3(0.2 * H, 0.04 * H, 0.03), v3(0, -0.13 * H, z), rgb(40, 110, 36))
+	end
+end
+
 ----------------------------------------------------------------------
 -- HAIR
 ----------------------------------------------------------------------
@@ -469,7 +491,7 @@ local function buildShirt(ctx, vis)
 		add(ctx, torso, "Shirt_Hole", v3(0.22 * d.S, 0.3 * d.S, 0.04), CFrame.new(0.45 * d.S, -0.3 * d.S, z) * CFrame.Angles(0, 0, rad(-15)), PartUtil.shade(vis.color, 0.45))
 		add(ctx, torso, "Shirt_Hole", v3(0.36 * d.S, 0.12 * d.S, 0.04), CFrame.new(0.1 * d.S, -0.6 * d.S, z) * CFrame.Angles(0, 0, rad(8)), PartUtil.shade(vis.color, 0.45))
 	end
-	if vis.graphic then
+	if vis.graphic and not ctx.preview then
 		graphicOn(front, vis)
 	end
 	return front
@@ -1031,7 +1053,11 @@ function BradyBuilder.build(spec)
 	joint("RightHip", torso, rightLeg, v3(legX, hipY, 0))
 
 	-- FACE + HAIR --------------------------------------------------------
-	buildFace(head, stage.look.face)
+	if ctx.preview then
+		buildPreviewFace(ctx, stage.look.face)
+	else
+		buildFace(head, stage.look.face)
+	end
 	local hairId = spec.hairOverride or equipped.Hair or stage.look.hair
 	local hairItem = ClothingSystem.get(hairId) or ClothingSystem.get(stage.look.hair)
 	local hairPart = buildHair(ctx, hairItem.vis, hatVis)
