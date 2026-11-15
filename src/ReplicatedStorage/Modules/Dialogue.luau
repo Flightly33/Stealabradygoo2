@@ -13,10 +13,10 @@ Dialogue.Lines = {
 	Kid = { "look at my hat", "i'm basically grown", "can we get snacks", "bro", "hats are my thing now" },
 	Drippy = { "do you see the drip", "it's called fashion", "lowkey dripped out", "first drip. real drip." },
 	Trendy = { "this is trending", "nah this is crazy", "outfit check", "everyone's wearing this" },
-	Teen = { "mid.", "whatever", "you wouldn't get it", "it's not a phase", "literally me" },
-	Fashion = { "this hallway is a runway", "serving looks", "the silhouette. look at it.", "brady is locked in" },
+	Teen = { "mid.", "whatever", "the shades stay on", "it's not a phase", "literally me" },
+	Fashion = { "this hallway is a runway", "fit check by the wall", "the silhouette. look at it.", "brady is locked in" },
 	Archive = { "archive era", "it's a piece, not a jacket", "this is from '98", "you wouldn't know the designer" },
-	Vintage = { "they don't make them like this anymore", "this is vintage. so am i.", "true vintage only" },
+	Vintage = { "they don't make them like this anymore", "this crewneck is older than me", "true vintage only" },
 	Legendary = { "i am the archive", "most archive person on roblox", "legendary.", "goo forever" },
 
 	-- needs

@@ -33,7 +33,11 @@ local rgb = Color3.fromRGB
 local v3 = Vector3.new
 local rad = math.rad
 
-local SKIN = rgb(255, 214, 92)
+-- Brady Goo is modelled on the real Brady Goo (with his permission):
+-- fair skin, chestnut-brown curls, dark shades. See ClothingSystem for his
+-- signature pieces.
+local SKIN = rgb(241, 206, 180)
+local BROW = rgb(86, 58, 38)
 local GOO = ClothingSystem.GooColor
 local UNDERSHIRT = rgb(242, 242, 236)
 local DARK = rgb(30, 30, 34)
@@ -221,8 +225,8 @@ local function buildFace(head, faceId)
 		end
 	end
 	if def.brow then
-		frame(gui, "BrowL", UDim2.fromScale(0.2, 0.035), UDim2.fromScale(0.3, def.eyeY - 0.15), rgb(40, 110, 36), 1, def.brow)
-		frame(gui, "BrowR", UDim2.fromScale(0.2, 0.035), UDim2.fromScale(0.7, def.eyeY - 0.15), rgb(40, 110, 36), 1, -def.brow)
+		frame(gui, "BrowL", UDim2.fromScale(0.2, 0.035), UDim2.fromScale(0.3, def.eyeY - 0.15), BROW, 1, def.brow)
+		frame(gui, "BrowR", UDim2.fromScale(0.2, 0.035), UDim2.fromScale(0.7, def.eyeY - 0.15), BROW, 1, -def.brow)
 	end
 	-- Blush is always created so the animator can show it when he's embarrassed.
 	for _, side in ipairs({ { "BlushL", 0.17 }, { "BlushR", 0.83 } }) do
@@ -252,7 +256,7 @@ local function buildFace(head, faceId)
 		mouth = frame(gui, "Mouth", UDim2.fromScale(0.3, 0.08), UDim2.fromScale(0.5, 0.7), mouthColor, 1)
 	end
 	if def.mustache then
-		frame(gui, "Mustache", UDim2.fromScale(0.2, 0.035), UDim2.fromScale(0.5, 0.63), rgb(40, 110, 36), 1)
+		frame(gui, "Mustache", UDim2.fromScale(0.2, 0.035), UDim2.fromScale(0.5, 0.63), BROW, 1)
 	end
 	gui.Parent = head
 	return gui
@@ -276,7 +280,7 @@ local function buildPreviewFace(ctx, faceId)
 		add(ctx, head, "FaceBlush", v3(0.16 * H, 0.09 * H, 0.03), v3(0.33 * H, -0.1 * H, z), rgb(255, 150, 160))
 	end
 	if def.mustache then
-		add(ctx, head, "FaceMustache", v3(0.2 * H, 0.04 * H, 0.03), v3(0, -0.13 * H, z), rgb(40, 110, 36))
+		add(ctx, head, "FaceMustache", v3(0.2 * H, 0.04 * H, 0.03), v3(0, -0.13 * H, z), BROW)
 	end
 end
 
@@ -287,7 +291,7 @@ end
 -- `top = true` pieces are skipped when a hat is worn.
 local function buildHair(ctx, vis, hatDef)
 	local head, H = ctx.parts.Head, ctx.d.H
-	local color = vis.color or GOO
+	local color = vis.color or ClothingSystem.HairColor
 	local tip = vis.color2 or color
 	local hasHat = hatDef ~= nil
 	if hatDef and hatDef.kind == "hood" then
@@ -393,6 +397,43 @@ local function buildHair(ctx, vis, hatDef)
 		hair("BunL", v3(0.5, 0.5, 0.5), v3(-0.45, 0.78, 0), true, nil, { shape = "Ball" })
 		hair("BunR", v3(0.5, 0.5, 0.5), v3(0.45, 0.78, 0), true, nil, { shape = "Ball" })
 		underHat(0.4)
+	elseif style == "curls" then
+		-- Chestnut curls: a clump of balls on top, a swept fringe, and curls
+		-- hanging over the ears and down the back. `volume` makes the mop
+		-- bigger, `length` makes it hang lower. Side + back curls stay
+		-- visible under hats, like real curly hair poking out of a beanie.
+		local vol = vis.volume or 1
+		local len = vis.length or 0.35
+		local light = vis.color2 or PartUtil.shade(color, 1.28)
+		local tip = vis.tips
+		local ball = { shape = "Ball" }
+		local function shadeFor(i)
+			return (i % 3 == 0) and light or color
+		end
+		hair("Cap", v3(1.07, 0.32, 1.09), v3(0, 0.45, 0.02), true)
+		local d = 0.44 * vol
+		for i = 1, 7 do
+			local a = (i - 1) / 7 * math.pi * 2 + 0.3
+			hair("Curl" .. i, v3(d, d, d), v3(math.cos(a) * 0.36, 0.56 + 0.07 * vol, math.sin(a) * 0.36), true, shadeFor(i), ball)
+		end
+		hair("CurlCrown", v3(d * 1.15, d * 1.15, d * 1.15), v3(0.04, 0.66 + 0.1 * vol, 0.02), true, color, ball)
+		-- fringe swept to one side, over the forehead
+		for i, x in ipairs({ -0.3, -0.04, 0.22 }) do
+			local f = (0.32 - i * 0.02) * vol
+			hair("Fringe" .. i, v3(f, f, f), v3(x + 0.06, 0.36 - i * 0.025, -0.5), true, shadeFor(i + 1), ball)
+		end
+		-- over the ears + down the back
+		local levels = math.max(1, math.floor(len / 0.2 + 0.5))
+		for level = 1, levels do
+			local y = 0.3 - (level - 1) * 0.2
+			local s2 = (0.38 - level * 0.02) * vol
+			for _, side in ipairs({ -1, 1 }) do
+				local c = (tip and level == levels) and tip or shadeFor(level + side)
+				hair("SideCurl", v3(s2, s2, s2), v3(side * 0.55, y, 0.08), false, c, (tip and level == levels) and { shape = "Ball", material = "Neon" } or ball)
+				local b = (tip and level == levels) and tip or shadeFor(level)
+				hair("BackCurl", v3(s2, s2, s2), v3(side * 0.24, y + 0.04, 0.55), false, b, (tip and level == levels) and { shape = "Ball", material = "Neon" } or ball)
+			end
+		end
 	elseif style == "long" then
 		hair("Top", v3(1.08, 0.26, 1.08), v3(0, 0.47, 0), true)
 		hair("Back", v3(1.1, 1.6, 0.16), v3(0, -0.35, 0.56), false)
@@ -480,6 +521,16 @@ local function buildShirt(ctx, vis)
 			add(ctx, arm, "Shirt_Sleeve", v3(d.armW * 1.28, d.armH * 0.8, d.armW * 1.28), v3(0, d.armH * 0.08, 0), sleeveColor, { material = material })
 		end
 	end
+	if vis.crew then
+		-- crewneck sweatshirt: ribbed collar, hem and cuffs in a darker shade
+		local rib = PartUtil.shade(vis.color, 0.82)
+		add(ctx, torso, "Shirt_Collar", v3(d.torsoW * 0.44, 0.1 * d.S, d.torsoD * 0.66), v3(0, d.torsoH / 2 + 0.03 * d.S, 0), rib, { material = "Fabric" })
+		add(ctx, torso, "Shirt_Hem", v3(front.Size.X * 1.015, 0.14 * d.S, front.Size.Z * 1.015), v3(0, -d.torsoH / 2 + 0.06 * d.S, 0), rib, { material = "Fabric" })
+		for _, side in ipairs({ "LeftArm", "RightArm" }) do
+			local arm = parts[side]
+			add(ctx, arm, "Shirt_Cuff", v3(d.armW * 1.06, d.armH * 0.08, d.armW * 1.06), v3(0, -d.armH * 0.3, 0), rib, { material = "Fabric" })
+		end
+	end
 	if vis.stripes then
 		local w, dd = front.Size.X * 1.02, front.Size.Z * 1.02
 		add(ctx, torso, "Shirt_Stripe", v3(w, d.torsoH * 0.11, dd), v3(0, d.torsoH * 0.2, 0), vis.stripes)
@@ -534,6 +585,10 @@ local function buildPants(ctx, vis)
 		end
 		if vis.stripe then
 			add(ctx, leg, "Pants_Stripe", v3(0.05 * d.S, d.legH * length * 0.98, d.legW * 0.3), v3(outer, d.legH * (1 - length) / 2, 0), vis.stripe)
+		end
+		if vis.fade then
+			-- lighter worn-in panel on the front of each thigh
+			add(ctx, leg, "Pants_Fade", v3(w * 0.62, d.legH * 0.36, 0.04), v3(outward, d.legH * 0.12, -(w / 2 + 0.01)), vis.fade)
 		end
 		if vis.patches then
 			add(ctx, leg, "Pants_Rip", v3(d.legW * 0.6, d.legH * 0.14, 0.05), v3(outward, d.legH * 0.08, -(w / 2 + 0.01)), SKIN)
@@ -601,6 +656,9 @@ local function buildShoes(ctx, vis)
 			else
 				local upper = add(ctx, leg, "Shoe_Upper", v3(w, upH, len), v3(0, bottom + 0.14 * d.S + upH / 2, forward), vis.color, { material = material })
 				add(ctx, leg, "Shoe_Toe", v3(w * 0.9, upH * 0.5, len * 0.3), v3(0, bottom + 0.14 * d.S + upH * 0.25, forward - len * 0.42), PartUtil.shade(vis.color, 0.92), { material = material })
+				if vis.stripe then
+					add(ctx, leg, "Shoe_Stripe", v3(w * 1.03, upH * 0.2, len * 0.46), v3(0, bottom + 0.14 * d.S + upH * 0.55, forward + len * 0.08), vis.stripe)
+				end
 				if vis.split then
 					add(ctx, leg, "Shoe_Split", v3(0.05 * d.S, upH * 0.6, len * 0.35), v3(0, bottom + 0.14 * d.S + upH * 0.3, forward - len * 0.42), DARK)
 				end
@@ -661,6 +719,26 @@ local function buildJacket(ctx, vis)
 	end
 	if vis.hood then
 		add(ctx, torso, "Jacket_Hood", v3(d.H * 0.95, d.H * 0.7, d.H * 0.5), CFrame.new(0, d.torsoH / 2 + d.H * 0.28, d.torsoD / 2 + d.H * 0.12) * CFrame.Angles(rad(-12), 0, 0), color, opts)
+	end
+	if vis.plaid then
+		-- flannel check: horizontal bands on each panel + vertical lines
+		local band, line = vis.plaid, vis.plaid2 or vis.plaid
+		local frontZ = -(d.torsoD / 2 + b / 2)
+		local backZ = d.torsoD / 2 + b / 2
+		for _, y in ipairs({ d.torsoH * 0.18, -d.torsoH * 0.22 }) do
+			add(ctx, torso, "Jacket_Plaid", v3(W * 1.01, 0.16 * S, b * 1.25), v3(0, y, backZ), band, opts)
+			add(ctx, torso, "Jacket_Plaid", v3(W * 0.37, 0.16 * S, b * 1.25), v3(-W * 0.32, y, frontZ), band, opts)
+			add(ctx, torso, "Jacket_Plaid", v3(W * 0.37, 0.16 * S, b * 1.25), v3(W * 0.32, y, frontZ), band, opts)
+		end
+		add(ctx, torso, "Jacket_PlaidLine", v3(0.07 * S, Hh * 1.005, b * 1.3), v3(-W * 0.3, yMid, frontZ), line, opts)
+		add(ctx, torso, "Jacket_PlaidLine", v3(0.07 * S, Hh * 1.005, b * 1.3), v3(W * 0.3, yMid, frontZ), line, opts)
+		add(ctx, torso, "Jacket_PlaidLine", v3(0.07 * S, Hh * 1.005, b * 1.3), v3(0, yMid, backZ), line, opts)
+		for _, side in ipairs({ "LeftArm", "RightArm" }) do
+			local arm = parts[side]
+			local sw = (d.armW + 1.5 * b) * 1.03
+			add(ctx, arm, "Jacket_PlaidSleeve", v3(sw, 0.16 * S, sw), v3(0, d.armH * 0.2, 0), band, opts)
+			add(ctx, arm, "Jacket_PlaidSleeve", v3(sw, 0.16 * S, sw), v3(0, -d.armH * 0.15, 0), band, opts)
+		end
 	end
 	if vis.straps then
 		add(ctx, torso, "Jacket_Strap", v3(0.1 * S, d.torsoH * 0.9, 0.06 * S), CFrame.new(-W * 0.3, yMid - 0.2 * S, d.torsoD / 2 + b + 0.04 * S) * CFrame.Angles(0, 0, rad(8)), vis.straps)
@@ -766,6 +844,14 @@ local function buildGlasses(ctx, vis)
 		local tall = vis.tall and 0.4 or 0.24
 		main = piece("Lens", v3(1.02, tall, 0.07), v3(0, eyeY, z), lensColor, { material = "Neon", transparency = 0.1 })
 		piece("Bar", v3(1.06, 0.06, 0.09), v3(0, eyeY + tall / 2, z), frameColor)
+		temples()
+	elseif kind == "ovals" then
+		-- rounded dark shades: a round lens with a wider block behind it
+		for _, x in ipairs({ -0.23, 0.23 }) do
+			main = piece("Lens", v3(0.06, 0.3, 0.3), CFrame.new(x, eyeY, z - 0.01) * PartUtil.FWD, lensColor, { shape = "Cylinder", material = "Glass", reflectance = 0.3 })
+			piece("LensWide", v3(0.38, 0.22, 0.05), v3(x, eyeY, z), lensColor, { material = "Glass", reflectance = 0.3 })
+		end
+		piece("Bridge", v3(0.12, 0.04, 0.05), v3(0, eyeY + 0.05, z), frameColor)
 		temples()
 	elseif kind == "goggles" then
 		main = piece("Strap", v3(1.07, 0.16, 1.07), v3(0, eyeY, 0), frameColor, { material = "Fabric" })
@@ -879,6 +965,12 @@ local function buildAccessory(ctx, vis)
 			end
 		end
 		main = torso
+	elseif kind == "belt" then
+		local y = -d.torsoH / 2 + 0.09 * S
+		local beltW = math.max(d.torsoW, (ctx.frontDepth or 0) > d.torsoD / 2 + 0.05 * S and d.torsoW + 0.08 * S or d.torsoW) * 1.04
+		main = add(ctx, torso, "Acc_Belt", v3(beltW, 0.16 * S, d.torsoD * 1.08 + 0.04 * S), v3(0, y, 0), c1, { material = "Fabric" })
+		add(ctx, torso, "Acc_Buckle", v3(0.42 * S, 0.22 * S, 0.06 * S), v3(0, y, -(d.torsoD * 0.54 + 0.04 * S)), c2, { material = "Foil", reflectance = 0.3 })
+		add(ctx, torso, "Acc_BuckleCenter", v3(0.24 * S, 0.1 * S, 0.07 * S), v3(0, y, -(d.torsoD * 0.54 + 0.05 * S)), c1)
 	elseif kind == "orb" then
 		main = add(ctx, torso, "Acc_Orb", v3(0.7 * S, 0.7 * S, 0.7 * S), v3(d.torsoW / 2 + 1.0 * S, d.torsoH / 2 + 0.7 * S, 0), c1, { shape = "Ball", material = "Neon" })
 		add(ctx, torso, "Acc_OrbBlob", v3(0.34 * S, 0.34 * S, 0.34 * S), v3(d.torsoW / 2 + 1.35 * S, d.torsoH / 2 + 0.4 * S, 0.1 * S), c2, { shape = "Ball", material = "Neon" })

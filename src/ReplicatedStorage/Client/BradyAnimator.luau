@@ -305,6 +305,39 @@ function POSE.LegendPose(o, _t, g, e)
 	o.N = A(10, 0, 0)
 end
 
+-- The three signature poses below come from the real Brady's photos.
+
+-- "The Brady": one hand behind the head, chin up, hip popped.
+function POSE.HeadHold(o, _t, g)
+	o.W = A(2, -6, -5)
+	o.RS = A(162, 0, 46) -- arm up and bent back behind the head
+	o.LS = A(-4, 0, -9)
+	o.LH = A(0, 0, -5)
+	o.RH = A(4, 0, 3)
+	o.N = A(10 + math.sin(g * 1.1) * 2, -12, 7)
+end
+
+-- Both hands tugging his collar, head turned to the side.
+function POSE.CollarPop(o, _t, g)
+	local tug = math.sin(g * 2.2) * 4
+	o.W = A(-2, 10, 0)
+	o.LS = A(128 + tug, 0, 26)
+	o.RS = A(128 + tug, 0, -26)
+	o.LH = A(0, 0, -6)
+	o.RH = A(0, 0, 6)
+	o.N = A(-6, 22, 0)
+end
+
+-- Leaning back against a wall, hands in pockets, ankles crossed, looking away.
+function POSE.WallLean(o, _t, g, e)
+	o.W = T(-0.12 * e.S, -0.05 * e.S, 0) * A(4, -8, 9)
+	o.LS = A(-10, 0, -6)
+	o.RS = A(-10, 0, 6)
+	o.LH = A(2, 0, -4)
+	o.RH = A(6, 0, 12)
+	o.N = A(4, -20 + math.sin(g * 0.5) * 4, -6)
+end
+
 function POSE.GrailFloat(o, _t, g, e)
 	o.W = T(0, (1.3 + sin(g * 1.8) * 0.2) * e.S, 0) * A(0, g * 40, 0)
 	o.LH = A(72, 0, 36)

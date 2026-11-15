@@ -1,7 +1,7 @@
 # Raise Brady Goo
 
 A funny Roblox meme / tycoon-style game. You get a small house and a goofy baby
-called **Brady Goo**. Feed him, clean him, play with him and put him to bed to
+called **Brady Goo**, modelled (with his permission) on the real Brady Goo. Feed him, clean him, play with him and put him to bed to
 earn **Goo Coins** and **Age XP**. As he ages from *Baby Brady* (1) to
 *Legendary Brady Goo* (25) he changes body shape, hair, face, walk and idle
 animations, unlocks clothing categories, moves into a bigger house and gifts
@@ -9,6 +9,34 @@ you wearable pieces for your own avatar. The long-term chase is fashion:
 Common → Uncommon → Rare → Epic → Legendary → **Archive** → **Grail**.
 
 ![The ten stages](docs/preview-stages.png)
+
+### Based on the real Brady Goo
+
+Brady starts goofy (baby curl, bowl cut, gel spikes) and grows into the real
+Brady's look: fair skin, a big chestnut curly mop and his signature dark
+shades. His outfits from reference photos are in the game as pieces you
+unlock along the way:
+
+| Piece | How you get it |
+| --- | --- |
+| Clean White Low-Tops | age 3 reward |
+| Plaid Flannel Overshirt | age 8 reward |
+| Statement Belt | age 10 reward |
+| Signature Dark Shades | age 13 reward |
+| **The Malibu Fit**: grey crewneck, olive chinos, white low-tops, dark shades | age 16 reward |
+| **The Varsity Fit**: vintage red crewneck, washed black jeans, chrome sneakers, belt, shades | age 21 reward |
+| **The Flannel Fit**: plaid over a white tee, faded denim, striped high-tops, clear specs | shop, age 16 |
+| Malibu Crewneck, Olive Chinos, Washed Black Jeans, Faded Grunge Denim, Striped Court High-Tops, Vintage Varsity Crewneck, Clear Frame Specs | shop, separately |
+| Chrome Sneakers | crates (Legendary) |
+
+His curls grow bigger every stage from age 8 (First Curls → Fluffy Curls →
+Shades-On Curls → The Brady Flow → Archive Curls → Vintage Shag Curls →
+Legendary Curls with gold tips). Three poses come from his photos: **Collar
+Pop** (age 13), **Wall Lean** (age 16) and **The Brady**, hand behind the head
+(age 18).
+
+No real logos are copied: the crewneck texts are "MALIBU" and "GOO HIGH
+HORNETS", the high-top stripe is goo green, and the belt buckle is plain.
 
 > The preview images in `docs/` are drawn by a small offline renderer from the
 > exact geometry the game builds (`tools/`). They are **not** Roblox
@@ -80,9 +108,9 @@ line. The most likely first-run issues are visual, not logical.
 | System | Where | Notes |
 | --- | --- | --- |
 | 10 life stages, ages 1–25, XP curve | `Modules/AgeSystem` | each stage: proportions, hair, face, idle, walk, unlocks |
-| 116 clothing items in 9 categories, 7 rarities | `Modules/ClothingSystem` | data-driven: add a row, no modelling |
+| 137 clothing items in 9 categories, 7 rarities | `Modules/ClothingSystem` | data-driven: add a row, no modelling |
 | Brady model + every clothing piece built from parts | `Modules/Builders/BradyBuilder` | no meshes or image assets |
-| Procedural animation: 7 idles, 8 walks, 14 poses, 13 actions | `Client/BradyAnimator` | no uploaded animation assets |
+| Procedural animation: 7 idles, 8 walks, 17 poses, 13 actions | `Client/BradyAnimator` | no uploaded animation assets |
 | Care: feed, shower, brush, shoes, sleep, toys, follow | `Services/CareServer` | four meters, mood changes XP |
 | Mini-games: catch, target, reaction, soccer, dance, obby | `StarterGui/MinigameUI`, `Services/MinigameServer` | |
 | Goo Coins, shop, 4 crates with visible odds | `Services/ShopServer`, `Modules/ShopSystem` | coins cannot be bought |

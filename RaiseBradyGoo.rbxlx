@@ -325,6 +325,39 @@ function POSE.LegendPose(o, _t, g, e)
 	o.N = A(10, 0, 0)
 end
 
+-- The three signature poses below come from the real Brady's photos.
+
+-- "The Brady": one hand behind the head, chin up, hip popped.
+function POSE.HeadHold(o, _t, g)
+	o.W = A(2, -6, -5)
+	o.RS = A(162, 0, 46) -- arm up and bent back behind the head
+	o.LS = A(-4, 0, -9)
+	o.LH = A(0, 0, -5)
+	o.RH = A(4, 0, 3)
+	o.N = A(10 + math.sin(g * 1.1) * 2, -12, 7)
+end
+
+-- Both hands tugging his collar, head turned to the side.
+function POSE.CollarPop(o, _t, g)
+	local tug = math.sin(g * 2.2) * 4
+	o.W = A(-2, 10, 0)
+	o.LS = A(128 + tug, 0, 26)
+	o.RS = A(128 + tug, 0, -26)
+	o.LH = A(0, 0, -6)
+	o.RH = A(0, 0, 6)
+	o.N = A(-6, 22, 0)
+end
+
+-- Leaning back against a wall, hands in pockets, ankles crossed, looking away.
+function POSE.WallLean(o, _t, g, e)
+	o.W = T(-0.12 * e.S, -0.05 * e.S, 0) * A(4, -8, 9)
+	o.LS = A(-10, 0, -6)
+	o.RS = A(-10, 0, 6)
+	o.LH = A(2, 0, -4)
+	o.RH = A(6, 0, 12)
+	o.N = A(4, -20 + math.sin(g * 0.5) * 4, -6)
+end
+
 function POSE.GrailFloat(o, _t, g, e)
 	o.W = T(0, (1.3 + sin(g * 1.8) * 0.2) * e.S, 0) * A(0, g * 40, 0)
 	o.LH = A(72, 0, 36)
@@ -1861,7 +1894,7 @@ AgeSystem.Stages = {
 		unlockSlot = "Shoes",
 		unlockText = "Shoes",
 		interaction = "Take Brady outside + the Obby",
-		rewards = { coins = 150, items = { "hair_bowl", "simple_sneakers" }, furniture = "toy_blocks", gift = "gift_bucket", pose = "Peace" },
+		rewards = { coins = 150, items = { "hair_bowl", "white_lowtops" }, furniture = "toy_blocks", gift = "gift_bucket", pose = "Peace" },
 	},
 	{
 		age = 5,
@@ -1878,67 +1911,67 @@ AgeSystem.Stages = {
 		age = 8,
 		id = "Drippy",
 		name = "Drippy Brady",
-		blurb = "the first drip. it is small, but it is real.",
-		look = { scale = 0.8, head = 1.22, leg = 0.9, arm = 0.92, torso = 0.94, hair = "hair_swoop", face = "Drippy", idle = "Cool", walk = "Bop" },
+		blurb = "the curls came in. the first flannel went on. it begins.",
+		look = { scale = 0.8, head = 1.22, leg = 0.9, arm = 0.92, torso = 0.94, hair = "hair_first_curls", face = "Drippy", idle = "Cool", walk = "Bop" },
 		unlockSlot = "Jacket",
 		unlockText = "Jackets",
 		interaction = "Dance Battle mini-game",
-		rewards = { coins = 500, items = { "hair_swoop", "zip_hoodie" }, furniture = "neon_sign", gift = "gift_chain", pose = "HandsOnHips" },
+		rewards = { coins = 500, items = { "hair_first_curls", "plaid_flannel" }, furniture = "neon_sign", gift = "gift_chain", pose = "HandsOnHips" },
 	},
 	{
 		age = 10,
 		id = "Trendy",
 		name = "Trendy Brady",
 		blurb = "he saw one outfit video and now he is unstoppable.",
-		look = { scale = 0.87, head = 1.15, leg = 0.95, arm = 0.96, torso = 0.97, hair = "hair_fluffy", face = "Trendy", idle = "Cool", walk = "Bop" },
+		look = { scale = 0.87, head = 1.15, leg = 0.95, arm = 0.96, torso = 0.97, hair = "hair_fluffy_curls", face = "Trendy", idle = "Cool", walk = "Bop" },
 		unlockSlot = "Accessory",
 		unlockText = "Accessories",
 		interaction = "Designer Drop crates",
-		rewards = { coins = 800, items = { "hair_fluffy", "goo_chain" }, furniture = "speaker", gift = "gift_shades", pose = "Flex" },
+		rewards = { coins = 800, items = { "hair_fluffy_curls", "statement_belt" }, furniture = "speaker", gift = "gift_shades", pose = "Flex" },
 	},
 	{
 		age = 13,
 		id = "Teen",
 		name = "Teen Brady",
-		blurb = "everything is 'mid' except his own fit.",
-		look = { scale = 0.96, head = 1.07, leg = 1.02, arm = 1.02, torso = 0.98, hair = "hair_fringe", face = "Teen", idle = "Slouch", walk = "Slouch" },
+		blurb = "found his signature shades. has not taken them off since.",
+		look = { scale = 0.96, head = 1.07, leg = 1.02, arm = 1.02, torso = 0.98, hair = "hair_teen_curls", face = "Teen", idle = "Slouch", walk = "Slouch" },
 		unlockSlot = "Glasses",
 		unlockText = "Glasses",
 		interaction = "Fit checks from other players",
-		rewards = { coins = 1200, items = { "hair_fringe", "round_glasses" }, furniture = "gaming_setup", gift = "gift_headphones", pose = "Thinker" },
+		rewards = { coins = 1200, items = { "hair_teen_curls", "dark_ovals" }, furniture = "gaming_setup", gift = "gift_headphones", pose = "CollarPop" },
 	},
 	{
 		age = 16,
 		id = "Fashion",
 		name = "Fashion Brady",
-		blurb = "he calls the hallway 'the runway' now.",
-		look = { scale = 1.03, head = 1.0, leg = 1.08, arm = 1.04, torso = 1.0, hair = "hair_slick", face = "Fashion", idle = "Model", walk = "Strut" },
+		blurb = "grey crewneck. olive chinos. dark shades. the classic brady is born.",
+		look = { scale = 1.03, head = 1.0, leg = 1.08, arm = 1.04, torso = 1.0, hair = "hair_brady_flow", face = "Fashion", idle = "Model", walk = "Strut" },
 		unlockSlot = "Outfit",
 		unlockText = "Full Outfits",
 		interaction = "Coordinated full fits",
-		rewards = { coins = 2000, items = { "hair_slick", "tracksuit" }, furniture = "clothing_rack", gift = "gift_scarf", pose = "ModelPose" },
+		rewards = { coins = 2000, items = { "hair_brady_flow", "malibu_fit" }, furniture = "clothing_rack", gift = "gift_scarf", pose = "WallLean" },
 	},
 	{
 		age = 18,
 		id = "Archive",
 		name = "Archive Brady",
 		blurb = "he no longer buys clothes. he 'acquires pieces'.",
-		look = { scale = 1.08, head = 0.97, leg = 1.14, arm = 1.07, torso = 1.0, hair = "hair_layers", face = "Archive", idle = "ArchiveLean", walk = "ArchiveWalk" },
+		look = { scale = 1.08, head = 0.97, leg = 1.14, arm = 1.07, torso = 1.0, hair = "hair_archive_curls", face = "Archive", idle = "ArchiveLean", walk = "ArchiveWalk" },
 		unlockSlot = nil,
 		unlockText = "ARCHIVE rarity + the Archive Vault",
 		interaction = "Archive Vault crates",
-		rewards = { coins = 3500, items = { "hair_layers", "vintage_goo_jacket" }, furniture = "sneaker_wall", gift = "gift_cape", pose = "ArchiveStance" },
+		rewards = { coins = 3500, items = { "hair_archive_curls", "vintage_goo_jacket" }, furniture = "sneaker_wall", gift = "gift_cape", pose = "HeadHold" },
 	},
 	{
 		age = 21,
 		id = "Vintage",
 		name = "Vintage Brady",
-		blurb = "older than most of his own wardrobe. barely.",
+		blurb = "vintage red crewneck, chrome kicks, hand behind the head. iconic.",
 		look = { scale = 1.12, head = 0.95, leg = 1.16, arm = 1.08, torso = 1.02, hair = "hair_shag", face = "Vintage", idle = "ArchiveLean", walk = "Strut" },
 		unlockSlot = nil,
 		unlockText = "GRAIL hunting + the Grail Vault",
 		interaction = "Grail Vault crates",
-		rewards = { coins = 6000, items = { "hair_shag", "vintage_royal" }, furniture = "vinyl_player", gift = "gift_vintage_cap", pose = "Salute" },
+		rewards = { coins = 6000, items = { "hair_shag", "varsity_fit" }, furniture = "vinyl_player", gift = "gift_vintage_cap", pose = "Salute" },
 	},
 	{
 		age = 25,
@@ -1972,6 +2005,10 @@ AgeSystem.Poses = {
 	{ id = "ArchiveStance", name = "Archive Stance", stage = 8 },
 	{ id = "Salute", name = "Salute", stage = 9 },
 	{ id = "LegendPose", name = "Legend", stage = 10 },
+	-- signature poses taken from the real Brady's photos
+	{ id = "CollarPop", name = "Collar Pop", stage = 6 },
+	{ id = "WallLean", name = "Wall Lean", stage = 7 },
+	{ id = "HeadHold", name = "The Brady", stage = 8 },
 	{ id = "GrailFloat", name = "Grail Float", item = true },
 	{ id = "TPose", name = "T-Pose", pass = "SpecialEmotes" },
 	{ id = "Griddy", name = "Goo Shuffle", pass = "SpecialEmotes" },
@@ -2146,7 +2183,11 @@ local rgb = Color3.fromRGB
 local v3 = Vector3.new
 local rad = math.rad
 
-local SKIN = rgb(255, 214, 92)
+-- Brady Goo is modelled on the real Brady Goo (with his permission):
+-- fair skin, chestnut-brown curls, dark shades. See ClothingSystem for his
+-- signature pieces.
+local SKIN = rgb(241, 206, 180)
+local BROW = rgb(86, 58, 38)
 local GOO = ClothingSystem.GooColor
 local UNDERSHIRT = rgb(242, 242, 236)
 local DARK = rgb(30, 30, 34)
@@ -2334,8 +2375,8 @@ local function buildFace(head, faceId)
 		end
 	end
 	if def.brow then
-		frame(gui, "BrowL", UDim2.fromScale(0.2, 0.035), UDim2.fromScale(0.3, def.eyeY - 0.15), rgb(40, 110, 36), 1, def.brow)
-		frame(gui, "BrowR", UDim2.fromScale(0.2, 0.035), UDim2.fromScale(0.7, def.eyeY - 0.15), rgb(40, 110, 36), 1, -def.brow)
+		frame(gui, "BrowL", UDim2.fromScale(0.2, 0.035), UDim2.fromScale(0.3, def.eyeY - 0.15), BROW, 1, def.brow)
+		frame(gui, "BrowR", UDim2.fromScale(0.2, 0.035), UDim2.fromScale(0.7, def.eyeY - 0.15), BROW, 1, -def.brow)
 	end
 	-- Blush is always created so the animator can show it when he's embarrassed.
 	for _, side in ipairs({ { "BlushL", 0.17 }, { "BlushR", 0.83 } }) do
@@ -2365,7 +2406,7 @@ local function buildFace(head, faceId)
 		mouth = frame(gui, "Mouth", UDim2.fromScale(0.3, 0.08), UDim2.fromScale(0.5, 0.7), mouthColor, 1)
 	end
 	if def.mustache then
-		frame(gui, "Mustache", UDim2.fromScale(0.2, 0.035), UDim2.fromScale(0.5, 0.63), rgb(40, 110, 36), 1)
+		frame(gui, "Mustache", UDim2.fromScale(0.2, 0.035), UDim2.fromScale(0.5, 0.63), BROW, 1)
 	end
 	gui.Parent = head
 	return gui
@@ -2389,7 +2430,7 @@ local function buildPreviewFace(ctx, faceId)
 		add(ctx, head, "FaceBlush", v3(0.16 * H, 0.09 * H, 0.03), v3(0.33 * H, -0.1 * H, z), rgb(255, 150, 160))
 	end
 	if def.mustache then
-		add(ctx, head, "FaceMustache", v3(0.2 * H, 0.04 * H, 0.03), v3(0, -0.13 * H, z), rgb(40, 110, 36))
+		add(ctx, head, "FaceMustache", v3(0.2 * H, 0.04 * H, 0.03), v3(0, -0.13 * H, z), BROW)
 	end
 end
 
@@ -2400,7 +2441,7 @@ end
 -- `top = true` pieces are skipped when a hat is worn.
 local function buildHair(ctx, vis, hatDef)
 	local head, H = ctx.parts.Head, ctx.d.H
-	local color = vis.color or GOO
+	local color = vis.color or ClothingSystem.HairColor
 	local tip = vis.color2 or color
 	local hasHat = hatDef ~= nil
 	if hatDef and hatDef.kind == "hood" then
@@ -2506,6 +2547,43 @@ local function buildHair(ctx, vis, hatDef)
 		hair("BunL", v3(0.5, 0.5, 0.5), v3(-0.45, 0.78, 0), true, nil, { shape = "Ball" })
 		hair("BunR", v3(0.5, 0.5, 0.5), v3(0.45, 0.78, 0), true, nil, { shape = "Ball" })
 		underHat(0.4)
+	elseif style == "curls" then
+		-- Chestnut curls: a clump of balls on top, a swept fringe, and curls
+		-- hanging over the ears and down the back. `volume` makes the mop
+		-- bigger, `length` makes it hang lower. Side + back curls stay
+		-- visible under hats, like real curly hair poking out of a beanie.
+		local vol = vis.volume or 1
+		local len = vis.length or 0.35
+		local light = vis.color2 or PartUtil.shade(color, 1.28)
+		local tip = vis.tips
+		local ball = { shape = "Ball" }
+		local function shadeFor(i)
+			return (i % 3 == 0) and light or color
+		end
+		hair("Cap", v3(1.07, 0.32, 1.09), v3(0, 0.45, 0.02), true)
+		local d = 0.44 * vol
+		for i = 1, 7 do
+			local a = (i - 1) / 7 * math.pi * 2 + 0.3
+			hair("Curl" .. i, v3(d, d, d), v3(math.cos(a) * 0.36, 0.56 + 0.07 * vol, math.sin(a) * 0.36), true, shadeFor(i), ball)
+		end
+		hair("CurlCrown", v3(d * 1.15, d * 1.15, d * 1.15), v3(0.04, 0.66 + 0.1 * vol, 0.02), true, color, ball)
+		-- fringe swept to one side, over the forehead
+		for i, x in ipairs({ -0.3, -0.04, 0.22 }) do
+			local f = (0.32 - i * 0.02) * vol
+			hair("Fringe" .. i, v3(f, f, f), v3(x + 0.06, 0.36 - i * 0.025, -0.5), true, shadeFor(i + 1), ball)
+		end
+		-- over the ears + down the back
+		local levels = math.max(1, math.floor(len / 0.2 + 0.5))
+		for level = 1, levels do
+			local y = 0.3 - (level - 1) * 0.2
+			local s2 = (0.38 - level * 0.02) * vol
+			for _, side in ipairs({ -1, 1 }) do
+				local c = (tip and level == levels) and tip or shadeFor(level + side)
+				hair("SideCurl", v3(s2, s2, s2), v3(side * 0.55, y, 0.08), false, c, (tip and level == levels) and { shape = "Ball", material = "Neon" } or ball)
+				local b = (tip and level == levels) and tip or shadeFor(level)
+				hair("BackCurl", v3(s2, s2, s2), v3(side * 0.24, y + 0.04, 0.55), false, b, (tip and level == levels) and { shape = "Ball", material = "Neon" } or ball)
+			end
+		end
 	elseif style == "long" then
 		hair("Top", v3(1.08, 0.26, 1.08), v3(0, 0.47, 0), true)
 		hair("Back", v3(1.1, 1.6, 0.16), v3(0, -0.35, 0.56), false)
@@ -2593,6 +2671,16 @@ local function buildShirt(ctx, vis)
 			add(ctx, arm, "Shirt_Sleeve", v3(d.armW * 1.28, d.armH * 0.8, d.armW * 1.28), v3(0, d.armH * 0.08, 0), sleeveColor, { material = material })
 		end
 	end
+	if vis.crew then
+		-- crewneck sweatshirt: ribbed collar, hem and cuffs in a darker shade
+		local rib = PartUtil.shade(vis.color, 0.82)
+		add(ctx, torso, "Shirt_Collar", v3(d.torsoW * 0.44, 0.1 * d.S, d.torsoD * 0.66), v3(0, d.torsoH / 2 + 0.03 * d.S, 0), rib, { material = "Fabric" })
+		add(ctx, torso, "Shirt_Hem", v3(front.Size.X * 1.015, 0.14 * d.S, front.Size.Z * 1.015), v3(0, -d.torsoH / 2 + 0.06 * d.S, 0), rib, { material = "Fabric" })
+		for _, side in ipairs({ "LeftArm", "RightArm" }) do
+			local arm = parts[side]
+			add(ctx, arm, "Shirt_Cuff", v3(d.armW * 1.06, d.armH * 0.08, d.armW * 1.06), v3(0, -d.armH * 0.3, 0), rib, { material = "Fabric" })
+		end
+	end
 	if vis.stripes then
 		local w, dd = front.Size.X * 1.02, front.Size.Z * 1.02
 		add(ctx, torso, "Shirt_Stripe", v3(w, d.torsoH * 0.11, dd), v3(0, d.torsoH * 0.2, 0), vis.stripes)
@@ -2647,6 +2735,10 @@ local function buildPants(ctx, vis)
 		end
 		if vis.stripe then
 			add(ctx, leg, "Pants_Stripe", v3(0.05 * d.S, d.legH * length * 0.98, d.legW * 0.3), v3(outer, d.legH * (1 - length) / 2, 0), vis.stripe)
+		end
+		if vis.fade then
+			-- lighter worn-in panel on the front of each thigh
+			add(ctx, leg, "Pants_Fade", v3(w * 0.62, d.legH * 0.36, 0.04), v3(outward, d.legH * 0.12, -(w / 2 + 0.01)), vis.fade)
 		end
 		if vis.patches then
 			add(ctx, leg, "Pants_Rip", v3(d.legW * 0.6, d.legH * 0.14, 0.05), v3(outward, d.legH * 0.08, -(w / 2 + 0.01)), SKIN)
@@ -2714,6 +2806,9 @@ local function buildShoes(ctx, vis)
 			else
 				local upper = add(ctx, leg, "Shoe_Upper", v3(w, upH, len), v3(0, bottom + 0.14 * d.S + upH / 2, forward), vis.color, { material = material })
 				add(ctx, leg, "Shoe_Toe", v3(w * 0.9, upH * 0.5, len * 0.3), v3(0, bottom + 0.14 * d.S + upH * 0.25, forward - len * 0.42), PartUtil.shade(vis.color, 0.92), { material = material })
+				if vis.stripe then
+					add(ctx, leg, "Shoe_Stripe", v3(w * 1.03, upH * 0.2, len * 0.46), v3(0, bottom + 0.14 * d.S + upH * 0.55, forward + len * 0.08), vis.stripe)
+				end
 				if vis.split then
 					add(ctx, leg, "Shoe_Split", v3(0.05 * d.S, upH * 0.6, len * 0.35), v3(0, bottom + 0.14 * d.S + upH * 0.3, forward - len * 0.42), DARK)
 				end
@@ -2774,6 +2869,26 @@ local function buildJacket(ctx, vis)
 	end
 	if vis.hood then
 		add(ctx, torso, "Jacket_Hood", v3(d.H * 0.95, d.H * 0.7, d.H * 0.5), CFrame.new(0, d.torsoH / 2 + d.H * 0.28, d.torsoD / 2 + d.H * 0.12) * CFrame.Angles(rad(-12), 0, 0), color, opts)
+	end
+	if vis.plaid then
+		-- flannel check: horizontal bands on each panel + vertical lines
+		local band, line = vis.plaid, vis.plaid2 or vis.plaid
+		local frontZ = -(d.torsoD / 2 + b / 2)
+		local backZ = d.torsoD / 2 + b / 2
+		for _, y in ipairs({ d.torsoH * 0.18, -d.torsoH * 0.22 }) do
+			add(ctx, torso, "Jacket_Plaid", v3(W * 1.01, 0.16 * S, b * 1.25), v3(0, y, backZ), band, opts)
+			add(ctx, torso, "Jacket_Plaid", v3(W * 0.37, 0.16 * S, b * 1.25), v3(-W * 0.32, y, frontZ), band, opts)
+			add(ctx, torso, "Jacket_Plaid", v3(W * 0.37, 0.16 * S, b * 1.25), v3(W * 0.32, y, frontZ), band, opts)
+		end
+		add(ctx, torso, "Jacket_PlaidLine", v3(0.07 * S, Hh * 1.005, b * 1.3), v3(-W * 0.3, yMid, frontZ), line, opts)
+		add(ctx, torso, "Jacket_PlaidLine", v3(0.07 * S, Hh * 1.005, b * 1.3), v3(W * 0.3, yMid, frontZ), line, opts)
+		add(ctx, torso, "Jacket_PlaidLine", v3(0.07 * S, Hh * 1.005, b * 1.3), v3(0, yMid, backZ), line, opts)
+		for _, side in ipairs({ "LeftArm", "RightArm" }) do
+			local arm = parts[side]
+			local sw = (d.armW + 1.5 * b) * 1.03
+			add(ctx, arm, "Jacket_PlaidSleeve", v3(sw, 0.16 * S, sw), v3(0, d.armH * 0.2, 0), band, opts)
+			add(ctx, arm, "Jacket_PlaidSleeve", v3(sw, 0.16 * S, sw), v3(0, -d.armH * 0.15, 0), band, opts)
+		end
 	end
 	if vis.straps then
 		add(ctx, torso, "Jacket_Strap", v3(0.1 * S, d.torsoH * 0.9, 0.06 * S), CFrame.new(-W * 0.3, yMid - 0.2 * S, d.torsoD / 2 + b + 0.04 * S) * CFrame.Angles(0, 0, rad(8)), vis.straps)
@@ -2879,6 +2994,14 @@ local function buildGlasses(ctx, vis)
 		local tall = vis.tall and 0.4 or 0.24
 		main = piece("Lens", v3(1.02, tall, 0.07), v3(0, eyeY, z), lensColor, { material = "Neon", transparency = 0.1 })
 		piece("Bar", v3(1.06, 0.06, 0.09), v3(0, eyeY + tall / 2, z), frameColor)
+		temples()
+	elseif kind == "ovals" then
+		-- rounded dark shades: a round lens with a wider block behind it
+		for _, x in ipairs({ -0.23, 0.23 }) do
+			main = piece("Lens", v3(0.06, 0.3, 0.3), CFrame.new(x, eyeY, z - 0.01) * PartUtil.FWD, lensColor, { shape = "Cylinder", material = "Glass", reflectance = 0.3 })
+			piece("LensWide", v3(0.38, 0.22, 0.05), v3(x, eyeY, z), lensColor, { material = "Glass", reflectance = 0.3 })
+		end
+		piece("Bridge", v3(0.12, 0.04, 0.05), v3(0, eyeY + 0.05, z), frameColor)
 		temples()
 	elseif kind == "goggles" then
 		main = piece("Strap", v3(1.07, 0.16, 1.07), v3(0, eyeY, 0), frameColor, { material = "Fabric" })
@@ -2992,6 +3115,12 @@ local function buildAccessory(ctx, vis)
 			end
 		end
 		main = torso
+	elseif kind == "belt" then
+		local y = -d.torsoH / 2 + 0.09 * S
+		local beltW = math.max(d.torsoW, (ctx.frontDepth or 0) > d.torsoD / 2 + 0.05 * S and d.torsoW + 0.08 * S or d.torsoW) * 1.04
+		main = add(ctx, torso, "Acc_Belt", v3(beltW, 0.16 * S, d.torsoD * 1.08 + 0.04 * S), v3(0, y, 0), c1, { material = "Fabric" })
+		add(ctx, torso, "Acc_Buckle", v3(0.42 * S, 0.22 * S, 0.06 * S), v3(0, y, -(d.torsoD * 0.54 + 0.04 * S)), c2, { material = "Foil", reflectance = 0.3 })
+		add(ctx, torso, "Acc_BuckleCenter", v3(0.24 * S, 0.1 * S, 0.07 * S), v3(0, y, -(d.torsoD * 0.54 + 0.05 * S)), c1)
 	elseif kind == "orb" then
 		main = add(ctx, torso, "Acc_Orb", v3(0.7 * S, 0.7 * S, 0.7 * S), v3(d.torsoW / 2 + 1.0 * S, d.torsoH / 2 + 0.7 * S, 0), c1, { shape = "Ball", material = "Neon" })
 		add(ctx, torso, "Acc_OrbBlob", v3(0.34 * S, 0.34 * S, 0.34 * S), v3(d.torsoW / 2 + 1.35 * S, d.torsoH / 2 + 0.4 * S, 0.1 * S), c2, { shape = "Ball", material = "Neon" })
@@ -4137,6 +4266,25 @@ local GOLD = rgb(255, 205, 60)
 
 ClothingSystem.GooColor = GOO
 
+-- The real Brady Goo's look (used with his permission): chestnut curls and a
+-- handful of signature pieces from his own outfits. Inspired by his style,
+-- no real brand logos.
+local HAIR = rgb(116, 78, 48)
+ClothingSystem.HairColor = HAIR
+
+local MALIBU_CREW = { color = rgb(170, 172, 178), sleeves = "long", crew = true, graphic = "text", text = "MALIBU", graphicColor = rgb(58, 60, 70) }
+local VARSITY_CREW = { color = rgb(196, 36, 42), sleeves = "long", crew = true, graphic = "text", text = "GOO HIGH\nHORNETS", graphicColor = rgb(248, 240, 228) }
+local OLIVE_CHINOS = { color = rgb(112, 106, 72), width = 0.96 }
+local BLACK_JEANS = { color = rgb(40, 40, 46), width = 0.95, fade = rgb(74, 74, 84) }
+local FADED_DENIM = { color = rgb(104, 128, 160), fade = rgb(162, 182, 206) }
+local WHITE_LOWTOPS = { color = WHITE, sole = rgb(232, 232, 232), chunk = 1.1 }
+local COURT_HIGHTOPS = { color = rgb(240, 234, 220), sole = rgb(222, 214, 198), high = true, stripe = GOO_DARK }
+local CHROME_SNEAKERS = { color = rgb(186, 190, 198), sole = rgb(146, 150, 160), chunk = 1.2, material = "Foil" }
+local PLAID_FLANNEL = { color = rgb(176, 64, 58), plaid = rgb(70, 72, 84), plaid2 = rgb(226, 218, 204), collar = true, bulk = 0.1, length = 0.15 }
+local DARK_OVALS = { kind = "ovals", color = rgb(20, 20, 22), lens = rgb(16, 16, 18) }
+local CLEAR_SPECS = { kind = "round", color = rgb(226, 218, 204), lens = rgb(225, 240, 255), clear = true }
+local STATEMENT_BELT = { kind = "belt", color = rgb(24, 24, 28), color2 = rgb(200, 204, 212) }
+
 ----------------------------------------------------------------------
 -- CATALOG
 ----------------------------------------------------------------------
@@ -4166,6 +4314,8 @@ add({ id = "goo_tee", name = "Goo Green Tee", slot = "Shirt", rarity = "Common",
 	desc = "matches his hair. this was not an accident.", vis = { color = GOO, sleeves = "short", graphic = "goo", graphicColor = GOO_DARK } })
 add({ id = "stripe_tee", name = "Stripey Tee", slot = "Shirt", rarity = "Common", age = 1, price = 90,
 	desc = "where's brady? right here. wearing stripes.", vis = { color = WHITE, sleeves = "short", stripes = rgb(220, 60, 60) } })
+add({ id = "malibu_crew", name = "Malibu Crewneck", slot = "Shirt", rarity = "Uncommon", age = 3, price = 260, tags = { "street", "vintage" },
+	desc = "soft grey, beachy text, zero beach trips planned.", vis = MALIBU_CREW })
 add({ id = "smile_tee", name = "Smiley Tee", slot = "Shirt", rarity = "Uncommon", age = 3, price = 220, tags = { "funny" },
 	desc = "the shirt is happier than he is.", vis = { color = rgb(255, 220, 70), sleeves = "short", graphic = "smile", graphicColor = BLACK } })
 add({ id = "banana_tee", name = "Banana Top", slot = "Shirt", rarity = "Uncommon", age = 3, price = 250, tags = { "funny" },
@@ -4176,6 +4326,8 @@ add({ id = "layered_tee", name = "Layered Double Tee", slot = "Shirt", rarity = 
 	desc = "two shirts. twice the fashion. simple math.", vis = { color = rgb(60, 60, 68), sleeves = "short", under = WHITE, graphic = "star", graphicColor = WHITE } })
 add({ id = "flame_tee", name = "Flame Graphic Tee", slot = "Shirt", rarity = "Rare", age = 10, price = 950, tags = { "street", "funny" },
 	desc = "adds +10 speed. (it does not.)", vis = { color = BLACK, sleeves = "short", graphic = "flame", graphicColor = rgb(255, 120, 30) } })
+add({ id = "varsity_crew", name = "Vintage Varsity Crewneck", slot = "Shirt", rarity = "Epic", age = 13, price = 2600, tags = { "vintage", "street" },
+	desc = "thrifted. faded. the cuffs are perfectly crunchy.", vis = VARSITY_CREW })
 add({ id = "goo_jersey", name = "Oversized Goo Jersey", slot = "Shirt", rarity = "Epic", age = 13, price = 2400, tags = { "street", "sport" },
 	desc = "number 00. plays for team drip.", vis = { color = rgb(40, 60, 150), sleeves = "short", oversized = true, graphic = "number", graphicColor = WHITE, stripes = GOLD } })
 add({ id = "tour_tee", name = "Sun-Faded Tour Tee", slot = "Shirt", rarity = "Epic", age = 16, price = 3200, tags = { "vintage", "street" },
@@ -4194,12 +4346,18 @@ add({ id = "khaki_shorts", name = "Khaki Shorts", slot = "Pants", rarity = "Comm
 	desc = "certified dad at a barbecue.", vis = { color = rgb(196, 170, 120), length = 0.5 } })
 add({ id = "pajama_pants", name = "Dino Pajama Pants", slot = "Pants", rarity = "Common", age = 1, price = 80, tags = { "funny" },
 	desc = "rawr means 'i am comfortable' in dinosaur.", vis = { color = rgb(120, 200, 230), width = 1.15, plaid = rgb(80, 180, 90) } })
+add({ id = "olive_chinos", name = "Olive Chinos", slot = "Pants", rarity = "Uncommon", age = 3, price = 240, tags = { "street", "vintage" },
+	desc = "the official pants of leaning on a wall looking cool.", vis = OLIVE_CHINOS })
 add({ id = "trackpants", name = "Track Pants", slot = "Pants", rarity = "Common", age = 3, price = 110, tags = { "sport" },
 	desc = "has never been near a track.", vis = { color = BLACK, stripe = WHITE } })
 add({ id = "cargo_pants", name = "Cargo Pants", slot = "Pants", rarity = "Uncommon", age = 5, price = 320, tags = { "street" },
 	desc = "8 pockets. 0 things to put in them.", vis = { color = rgb(96, 110, 70), width = 1.15, pockets = true } })
 add({ id = "ripped_jeans", name = "Ripped Jeans", slot = "Pants", rarity = "Uncommon", age = 8, price = 380, tags = { "street" },
 	desc = "he paid extra for less pants.", vis = { color = rgb(120, 150, 200), patches = true } })
+add({ id = "black_jeans", name = "Washed Black Jeans", slot = "Pants", rarity = "Uncommon", age = 8, price = 420, tags = { "street" },
+	desc = "black jeans go with everything. he checked.", vis = BLACK_JEANS })
+add({ id = "faded_denim", name = "Faded Grunge Denim", slot = "Pants", rarity = "Rare", age = 10, price = 950, tags = { "vintage", "street" },
+	desc = "faded at the knees from years of fit checks.", vis = FADED_DENIM })
 add({ id = "baggy_jeans", name = "Baggy Skater Jeans", slot = "Pants", rarity = "Rare", age = 8, price = 850, tags = { "street" },
 	desc = "there is room for two more bradys in here.", vis = { color = rgb(60, 86, 140), width = 1.45 } })
 add({ id = "plaid_pants", name = "Plaid Punk Pants", slot = "Pants", rarity = "Rare", age = 10, price = 900, tags = { "street", "vintage" },
@@ -4216,8 +4374,10 @@ add({ id = "grail_denim", name = "Hand-Painted Grail Denim", slot = "Pants", rar
 	desc = "painted by hand. worn by a legend.", vis = { color = rgb(230, 230, 240), width = 1.35, flare = true, plaid = rgb(255, 110, 225), stripe = GOLD } })
 
 -- SHOES (unlock at Little Brady, age 3) -----------------------------------
-add({ id = "simple_sneakers", name = "Simple Sneakers", slot = "Shoes", rarity = "Common", age = 3, drop = false, source = "Age 3 reward",
-	desc = "his very first pair. he will remember these.", vis = { color = WHITE, sole = rgb(220, 220, 220) } })
+add({ id = "white_lowtops", name = "Clean White Low-Tops", slot = "Shoes", rarity = "Uncommon", age = 3, drop = false, source = "Age 3 reward", tags = { "street" },
+	desc = "his very first pair. spotless. he wipes them after every step.", vis = WHITE_LOWTOPS })
+add({ id = "simple_sneakers", name = "Simple Sneakers", slot = "Shoes", rarity = "Common", age = 3, price = 80,
+	desc = "they're shoes. on feet. that's the whole thing.", vis = { color = rgb(90, 140, 220), sole = rgb(220, 220, 220) } })
 add({ id = "velcro_lights", name = "Velcro Light-Ups", slot = "Shoes", rarity = "Common", age = 3, price = 90, tags = { "funny" },
 	desc = "they flash when he stomps. he stomps a lot.", vis = { color = rgb(60, 110, 230), sole = WHITE, glow = rgb(255, 60, 60) } })
 add({ id = "canvas_highs", name = "Canvas High-Tops", slot = "Shoes", rarity = "Uncommon", age = 5, price = 280, tags = { "street" },
@@ -4228,12 +4388,16 @@ add({ id = "dad_runner", name = "Dad Runner 9000", slot = "Shoes", rarity = "Rar
 	desc = "maximum comfort. maximum lawn mowing energy.", vis = { color = rgb(235, 235, 235), sole = rgb(150, 170, 200), chunk = 1.3 } })
 add({ id = "designer_sneakers", name = "Designer-ish Sneakers", slot = "Shoes", rarity = "Rare", age = 10, price = 1100, tags = { "street", "luxury" },
 	desc = "legally distinct. emotionally expensive.", vis = { color = rgb(240, 240, 230), sole = rgb(200, 60, 60), chunk = 1.15 } })
+add({ id = "court_hightops", name = "Striped Court High-Tops", slot = "Shoes", rarity = "Rare", age = 10, price = 1150, tags = { "street", "vintage" },
+	desc = "cream high-tops with a stripe. main character footwear.", vis = COURT_HIGHTOPS })
 add({ id = "cloud_slides", name = "Foam Cloud Slides", slot = "Shoes", rarity = "Epic", age = 13, price = 2200, tags = { "funny", "street" },
 	desc = "like walking on a marshmallow.", vis = { color = rgb(214, 226, 190), sole = rgb(214, 226, 190), slide = true, chunk = 1.3 } })
 add({ id = "combat_boots", name = "Stompy Combat Boots", slot = "Shoes", rarity = "Epic", age = 13, price = 2500, tags = { "street", "vintage" },
 	desc = "every step is an announcement.", vis = { color = BLACK, sole = rgb(40, 40, 40), high = true, chunk = 1.2, platform = 0.12 } })
 add({ id = "gold_kicks", name = "24K Kicks", slot = "Shoes", rarity = "Legendary", age = 16, tags = { "luxury" }, fx = "gold",
 	desc = "do NOT step on these.", vis = { color = GOLD, sole = WHITE, chunk = 1.15, material = "Glass", glow = GOLD } })
+add({ id = "chrome_sneakers", name = "Chrome Sneakers", slot = "Shoes", rarity = "Legendary", age = 18, tags = { "luxury", "street" }, fx = "sparkle",
+	desc = "you can see your reflection. he does. often.", vis = CHROME_SNEAKERS })
 add({ id = "split_toe_boots", name = "Split-Toe Archive Boots", slot = "Shoes", rarity = "Archive", age = 18, tags = { "vintage", "luxury" }, fx = "dust",
 	desc = "yes the toe is split. no you can't ask why.", vis = { color = rgb(226, 220, 204), sole = rgb(60, 50, 40), high = true, split = true } })
 add({ id = "platform_stompers", name = "Mega Platform Stompers", slot = "Shoes", rarity = "Archive", age = 21, tags = { "vintage", "luxury", "street" }, fx = "smoke", walk = "ArchiveWalk",
@@ -4242,7 +4406,9 @@ add({ id = "sample_pair", name = "Sample Pair 001", slot = "Shoes", rarity = "Gr
 	desc = "never released. should not exist. on his feet.", vis = { color = WHITE, sole = rgb(255, 110, 225), chunk = 1.25, glow = rgb(120, 255, 255), material = "Neon" } })
 
 -- JACKETS (unlock at Drippy Brady, age 8) ---------------------------------
-add({ id = "zip_hoodie", name = "Zip Hoodie", slot = "Jacket", rarity = "Uncommon", age = 8, drop = false, source = "Age 8 reward", tags = { "street" },
+add({ id = "plaid_flannel", name = "Plaid Flannel Overshirt", slot = "Jacket", rarity = "Uncommon", age = 8, drop = false, source = "Age 8 reward", tags = { "street", "vintage" },
+	desc = "worn open. never buttoned. buttons are for squares.", vis = PLAID_FLANNEL })
+add({ id = "zip_hoodie", name = "Zip Hoodie", slot = "Jacket", rarity = "Uncommon", age = 8, price = 450, tags = { "street" },
 	desc = "the hoodie that started it all.", vis = { color = rgb(120, 124, 132), hood = true } })
 add({ id = "windbreaker", name = "Color-Block Windbreaker", slot = "Jacket", rarity = "Uncommon", age = 8, price = 400, tags = { "sport", "vintage" },
 	desc = "the 90s called. he picked up.", vis = { color = rgb(60, 180, 190), sleeve = rgb(240, 90, 160), trim = rgb(255, 220, 70), collar = true } })
@@ -4268,7 +4434,9 @@ add({ id = "runway_sample", name = "Runway Sample Jacket '99", slot = "Jacket", 
 	desc = "worn once on a runway. then lost. then found.", vis = { color = rgb(236, 236, 240), sleeve = rgb(255, 110, 225), trim = rgb(120, 255, 255), bulk = 0.3, length = 0.9, collar = true, material = "Glass" } })
 
 -- ACCESSORIES (unlock at Trendy Brady, age 10) ----------------------------
-add({ id = "goo_chain", name = "Lil Goo Chain", slot = "Accessory", rarity = "Uncommon", age = 10, drop = false, source = "Age 10 reward", tags = { "street" },
+add({ id = "statement_belt", name = "Statement Belt", slot = "Accessory", rarity = "Uncommon", age = 10, drop = false, source = "Age 10 reward", tags = { "street", "luxury" },
+	desc = "the buckle is shiny. the buckle IS the outfit.", vis = STATEMENT_BELT })
+add({ id = "goo_chain", name = "Lil Goo Chain", slot = "Accessory", rarity = "Uncommon", age = 10, price = 400, tags = { "street" },
 	desc = "small chain. big dreams.", vis = { kind = "chain", color = rgb(210, 210, 215), color2 = GOO, size = 1 } })
 add({ id = "striped_scarf", name = "Stripey Scarf", slot = "Accessory", rarity = "Uncommon", age = 10, price = 380, tags = { "vintage" },
 	desc = "it is not even cold.", vis = { kind = "scarf", color = rgb(200, 50, 50), color2 = CREAM } })
@@ -4316,7 +4484,11 @@ add({ id = "certified_halo", name = "Certified Halo", slot = "Hat", rarity = "Gr
 	desc = "certified. verified. sanctified.", vis = { kind = "halo", color = rgb(255, 240, 150) } })
 
 -- GLASSES (unlock at Teen Brady, age 13) ----------------------------------
-add({ id = "round_glasses", name = "Round Glasses", slot = "Glasses", rarity = "Uncommon", age = 13, drop = false, source = "Age 13 reward", tags = { "vintage" },
+add({ id = "dark_ovals", name = "Signature Dark Shades", slot = "Glasses", rarity = "Rare", age = 13, drop = false, source = "Age 13 reward", tags = { "street", "vintage" },
+	desc = "his signature shades. indoors, outdoors, always.", vis = DARK_OVALS })
+add({ id = "clear_specs", name = "Clear Frame Specs", slot = "Glasses", rarity = "Uncommon", age = 13, price = 320, tags = { "vintage" },
+	desc = "clear frames. he says they make him look 'smart casual'.", vis = CLEAR_SPECS })
+add({ id = "round_glasses", name = "Round Glasses", slot = "Glasses", rarity = "Uncommon", age = 13, price = 300, tags = { "vintage" },
 	desc = "now he looks like he reads.", vis = { kind = "round", color = rgb(40, 40, 40), lens = rgb(200, 230, 255), clear = true } })
 add({ id = "nerd_glasses", name = "Nerd Glasses", slot = "Glasses", rarity = "Uncommon", age = 13, price = 260, tags = { "funny" },
 	desc = "um, actually, the fit is immaculate.", vis = { kind = "nerd", color = BLACK, lens = rgb(220, 240, 255), clear = true } })
@@ -4339,7 +4511,16 @@ add({ id = "prototype_goggles", name = "Prototype Goggles", slot = "Glasses", ra
 
 -- FULL OUTFITS (unlock at Fashion Brady, age 16) ---------------------------
 -- An equipped outfit visually replaces the shirt / pants / shoes / jacket slots.
-add({ id = "tracksuit", name = "Full Goo Tracksuit", slot = "Outfit", rarity = "Rare", age = 16, drop = false, source = "Age 16 reward", tags = { "sport", "street" },
+add({ id = "malibu_fit", name = "The Malibu Fit", slot = "Outfit", rarity = "Epic", age = 16, drop = false, source = "Age 16 reward", tags = { "street", "vintage" },
+	desc = "grey crewneck, olive chinos, white kicks, dark shades. the classic brady.",
+	vis = { shirt = MALIBU_CREW, pants = OLIVE_CHINOS, shoes = WHITE_LOWTOPS, glasses = DARK_OVALS } })
+add({ id = "flannel_fit", name = "The Flannel Fit", slot = "Outfit", rarity = "Epic", age = 16, price = 4200, tags = { "vintage", "street" },
+	desc = "plaid open over a white tee, faded denim, striped high-tops. grunge, but clean.",
+	vis = { shirt = { color = WHITE, sleeves = "short" }, jacket = PLAID_FLANNEL, pants = FADED_DENIM, shoes = COURT_HIGHTOPS, glasses = CLEAR_SPECS } })
+add({ id = "varsity_fit", name = "The Varsity Fit", slot = "Outfit", rarity = "Legendary", age = 21, drop = false, source = "Age 21 reward", tags = { "vintage", "street", "luxury" }, fx = "sparkle", idle = "Model",
+	desc = "vintage red crewneck, black denim, chrome kicks, statement belt. hand behind the head, obviously.",
+	vis = { shirt = VARSITY_CREW, pants = BLACK_JEANS, shoes = CHROME_SNEAKERS, accessory = STATEMENT_BELT, glasses = DARK_OVALS } })
+add({ id = "tracksuit", name = "Full Goo Tracksuit", slot = "Outfit", rarity = "Rare", age = 16, price = 3800, tags = { "sport", "street" },
 	desc = "matching top and bottom. he is now unstoppable.",
 	vis = {
 		shirt = { color = GOO_DARK, sleeves = "long", stripes = WHITE },
@@ -4387,7 +4568,7 @@ add({ id = "space_cowboy", name = "Space Cowboy Fit", slot = "Outfit", rarity = 
 		jacket = { color = rgb(200, 200, 215), trim = rgb(120, 90, 255), bulk = 0.2, collar = true, material = "Glass" },
 		hat = { kind = "cowboy", color = rgb(200, 200, 215), color2 = rgb(120, 90, 255) },
 	} })
-add({ id = "vintage_royal", name = "Vintage Royalty Fit", slot = "Outfit", rarity = "Legendary", age = 21, drop = false, source = "Age 21 reward", tags = { "vintage", "luxury" }, fx = "gold",
+add({ id = "vintage_royal", name = "Vintage Royalty Fit", slot = "Outfit", rarity = "Legendary", age = 21, tags = { "vintage", "luxury" }, fx = "gold",
 	desc = "thrifted from a king. allegedly.",
 	vis = {
 		shirt = { color = rgb(110, 20, 40), sleeves = "long", graphic = "star", graphicColor = GOLD },
@@ -4432,24 +4613,31 @@ add({ id = "the_grail_fit", name = "THE GRAIL FIT", slot = "Outfit", rarity = "G
 	} })
 
 -- HAIRSTYLES (customising unlocks at Kid Brady, age 5) ---------------------
--- Stage hairstyles are handed out for free as Brady grows.
-add({ id = "hair_baby", name = "Baby Curl", slot = "Hair", rarity = "Common", age = 1, drop = false, source = "Baby Brady", desc = "one (1) curl.", vis = { style = "babycurl" } })
+-- Stage hairstyles are handed out for free as Brady grows. From age 8 he
+-- grows into the real Brady's chestnut curls, which get bigger every stage.
+add({ id = "hair_baby", name = "Baby Curl", slot = "Hair", rarity = "Common", age = 1, drop = false, source = "Baby Brady", desc = "one (1) curl. a sign of things to come.", vis = { style = "babycurl" } })
 add({ id = "hair_bowl", name = "Bowl Cut", slot = "Hair", rarity = "Common", age = 3, drop = false, source = "Age 3 reward", desc = "mom did it herself. you can tell.", vis = { style = "bowl" } })
 add({ id = "hair_spiky", name = "Spiky Kid Hair", slot = "Hair", rarity = "Common", age = 5, drop = false, source = "Age 5 reward", desc = "one entire tub of gel.", vis = { style = "spiky" } })
-add({ id = "hair_swoop", name = "The Swoop", slot = "Hair", rarity = "Uncommon", age = 8, drop = false, source = "Age 8 reward", desc = "requires a head flick every 4 seconds.", vis = { style = "swoop" } })
-add({ id = "hair_fluffy", name = "Fluffy Trendy Hair", slot = "Hair", rarity = "Uncommon", age = 10, drop = false, source = "Age 10 reward", desc = "fluffy hair. confirmed trendy.", vis = { style = "fluffy" } })
-add({ id = "hair_fringe", name = "Teen Curtains", slot = "Hair", rarity = "Rare", age = 13, drop = false, source = "Age 13 reward", desc = "covers his eyes so he can't see his homework.", vis = { style = "curtains" } })
-add({ id = "hair_slick", name = "Slick Back", slot = "Hair", rarity = "Rare", age = 16, drop = false, source = "Age 16 reward", desc = "aerodynamic.", vis = { style = "slick" } })
-add({ id = "hair_layers", name = "Archive Layers", slot = "Hair", rarity = "Epic", age = 18, drop = false, source = "Age 18 reward", desc = "messy on purpose. took two hours.", vis = { style = "layers" } })
-add({ id = "hair_shag", name = "Vintage Shag", slot = "Hair", rarity = "Epic", age = 21, drop = false, source = "Age 21 reward", desc = "business in the front. archive in the back.", vis = { style = "shag" } })
-add({ id = "hair_legend", name = "Legendary Flow", slot = "Hair", rarity = "Legendary", age = 25, drop = false, source = "Age 25 reward", fx = "gold", desc = "golden tips. godly flow.", vis = { style = "legend", color2 = GOLD } })
+add({ id = "hair_first_curls", name = "First Curls", slot = "Hair", rarity = "Uncommon", age = 8, drop = false, source = "Age 8 reward", desc = "the gel washed out. the curls came in. a legend awakens.", vis = { style = "curls", volume = 0.82, length = 0.25 } })
+add({ id = "hair_fluffy_curls", name = "Fluffy Curls", slot = "Hair", rarity = "Uncommon", age = 10, drop = false, source = "Age 10 reward", desc = "fluffy. bouncy. never once brushed flat.", vis = { style = "curls", volume = 0.95, length = 0.32 } })
+add({ id = "hair_teen_curls", name = "Shades-On Curls", slot = "Hair", rarity = "Rare", age = 13, drop = false, source = "Age 13 reward", desc = "curls over the forehead, shades on top of that. mysterious.", vis = { style = "curls", volume = 1.05, length = 0.4 } })
+add({ id = "hair_brady_flow", name = "The Brady Flow", slot = "Hair", rarity = "Rare", age = 16, drop = false, source = "Age 16 reward", desc = "the signature curly mop. instantly recognisable.", vis = { style = "curls", volume = 1.14, length = 0.48 } })
+add({ id = "hair_archive_curls", name = "Archive Curls", slot = "Hair", rarity = "Epic", age = 18, drop = false, source = "Age 18 reward", desc = "messy on purpose. took two hours.", vis = { style = "curls", volume = 1.2, length = 0.55, color2 = rgb(170, 120, 78) } })
+add({ id = "hair_shag", name = "Vintage Shag Curls", slot = "Hair", rarity = "Epic", age = 21, drop = false, source = "Age 21 reward", desc = "business in the front. archive in the back.", vis = { style = "curls", volume = 1.26, length = 0.7 } })
+add({ id = "hair_legend", name = "Legendary Curls", slot = "Hair", rarity = "Legendary", age = 25, drop = false, source = "Age 25 reward", fx = "gold", desc = "maximum curl. golden tips. godly volume.", vis = { style = "curls", volume = 1.34, length = 0.66, tips = GOLD } })
 -- Shop hairstyles
 add({ id = "hair_buzz", name = "Buzz Cut", slot = "Hair", rarity = "Common", age = 5, price = 100, desc = "low maintenance king.", vis = { style = "buzz" } })
-add({ id = "hair_mohawk", name = "Goo Mohawk", slot = "Hair", rarity = "Uncommon", age = 5, price = 300, tags = { "funny", "street" }, desc = "punk's not dead. it's just sticky.", vis = { style = "mohawk" } })
+add({ id = "hair_mohawk", name = "Goo Mohawk", slot = "Hair", rarity = "Uncommon", age = 5, price = 300, tags = { "funny", "street" }, desc = "punk's not dead. it's just sticky.", vis = { style = "mohawk", color = GOO } })
+add({ id = "hair_swoop", name = "The Swoop", slot = "Hair", rarity = "Uncommon", age = 8, price = 450, desc = "requires a head flick every 4 seconds.", vis = { style = "swoop" } })
 add({ id = "hair_puff", name = "Goo Puff", slot = "Hair", rarity = "Rare", age = 8, price = 800, desc = "big. round. glorious.", vis = { style = "puff" } })
+add({ id = "hair_fluffy", name = "Fluffy Straight Hair", slot = "Hair", rarity = "Uncommon", age = 10, price = 500, desc = "what if the curls... just weren't.", vis = { style = "fluffy" } })
 add({ id = "hair_buns", name = "Space Buns", slot = "Hair", rarity = "Rare", age = 10, price = 900, tags = { "funny" }, desc = "two buns. double the antenna reception.", vis = { style = "buns" } })
+add({ id = "hair_fringe", name = "Straight Curtains", slot = "Hair", rarity = "Rare", age = 13, price = 900, desc = "covers his eyes so he can't see his homework.", vis = { style = "curtains" } })
 add({ id = "hair_rockstar", name = "Rockstar Long Hair", slot = "Hair", rarity = "Epic", age = 13, price = 2200, tags = { "vintage" }, desc = "has never touched a guitar.", vis = { style = "long" } })
+add({ id = "hair_slick", name = "Slick Back", slot = "Hair", rarity = "Rare", age = 16, price = 1200, desc = "aerodynamic. the curls are furious about it.", vis = { style = "slick" } })
 add({ id = "hair_bleach", name = "Bleached Tips", slot = "Hair", rarity = "Epic", age = 16, price = 2800, tags = { "vintage", "street" }, desc = "the year is 1999 forever.", vis = { style = "spiky", color2 = rgb(250, 240, 180) } })
+add({ id = "hair_goo_curls", name = "Goo Green Curls", slot = "Hair", rarity = "Epic", age = 16, price = 3000, tags = { "funny" }, desc = "dyed goo green for a bet. he won the bet.", vis = { style = "curls", volume = 1.1, length = 0.45, color = GOO } })
+add({ id = "hair_layers", name = "Straight Layers", slot = "Hair", rarity = "Epic", age = 18, price = 2600, desc = "straightened for one day only.", vis = { style = "layers" } })
 add({ id = "hair_flame", name = "Flame Hair", slot = "Hair", rarity = "Legendary", age = 16, tags = { "funny" }, fx = "flame", desc = "his head is on fire. he's fine with it.", vis = { style = "mohawk", color = rgb(255, 120, 30), color2 = rgb(255, 220, 60) } })
 
 -- SECRET ITEMS (hidden around the map - cosmetic collectibles) -------------
@@ -4521,7 +4709,7 @@ function ClothingSystem.swatch(item)
 	if item.slot == "Outfit" then
 		return (vis.jacket and vis.jacket.color) or vis.shirt.color
 	elseif item.slot == "Hair" then
-		return vis.color or GOO
+		return vis.color or HAIR
 	end
 	return vis.color or GOO
 end
@@ -5180,10 +5368,10 @@ Dialogue.Lines = {
 	Kid = { "look at my hat", "i'm basically grown", "can we get snacks", "bro", "hats are my thing now" },
 	Drippy = { "do you see the drip", "it's called fashion", "lowkey dripped out", "first drip. real drip." },
 	Trendy = { "this is trending", "nah this is crazy", "outfit check", "everyone's wearing this" },
-	Teen = { "mid.", "whatever", "you wouldn't get it", "it's not a phase", "literally me" },
-	Fashion = { "this hallway is a runway", "serving looks", "the silhouette. look at it.", "brady is locked in" },
+	Teen = { "mid.", "whatever", "the shades stay on", "it's not a phase", "literally me" },
+	Fashion = { "this hallway is a runway", "fit check by the wall", "the silhouette. look at it.", "brady is locked in" },
 	Archive = { "archive era", "it's a piece, not a jacket", "this is from '98", "you wouldn't know the designer" },
-	Vintage = { "they don't make them like this anymore", "this is vintage. so am i.", "true vintage only" },
+	Vintage = { "they don't make them like this anymore", "this crewneck is older than me", "true vintage only" },
 	Legendary = { "i am the archive", "most archive person on roblox", "legendary.", "goo forever" },
 
 	-- needs
@@ -5653,8 +5841,8 @@ GiftSystem.List = {
 		desc = "he packed it with snacks. for himself." },
 	{ id = "gift_chain", name = "Drippy Chain", slot = "Neck", age = 8, kind = "chain", color = rgb(215, 215, 220), color2 = rgb(126, 232, 74),
 		desc = "your first chain. brady is proud." },
-	{ id = "gift_shades", name = "Trendy Shades", slot = "Face", age = 10, kind = "shades", color = rgb(25, 25, 28), color2 = rgb(20, 20, 20),
-		desc = "now you both can't see indoors." },
+	{ id = "gift_shades", name = "Brady's Dark Shades", slot = "Face", age = 10, kind = "shades", color = rgb(25, 25, 28), color2 = rgb(16, 16, 18),
+		desc = "a pair just like his signature shades. now you both can't see indoors." },
 	{ id = "gift_headphones", name = "Teen Headphones", slot = "Head", age = 13, kind = "headphones", color = rgb(240, 240, 240), color2 = rgb(255, 90, 90),
 		desc = "so you can ignore people together." },
 	{ id = "gift_scarf", name = "Fashion Scarf", slot = "Neck", age = 16, kind = "scarf", color = rgb(150, 30, 40), color2 = rgb(236, 226, 200),

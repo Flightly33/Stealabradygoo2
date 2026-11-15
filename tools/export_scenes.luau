@@ -47,15 +47,15 @@ local scenes = {}
 -- Brady at each of the ten stages, wearing what that stage unlocks.
 local FITS = {
 	{ age = 1, label = "Age 1 - Baby Brady", equipped = {} },
-	{ age = 3, label = "Age 3 - Little Brady", equipped = { Shirt = "goo_tee", Pants = "pajama_pants", Shoes = "velcro_lights" } },
-	{ age = 5, label = "Age 5 - Kid Brady", equipped = { Shirt = "smile_tee", Pants = "khaki_shorts", Shoes = "canvas_highs", Hat = "propeller_hat" } },
-	{ age = 8, label = "Age 8 - Drippy Brady", equipped = { Shirt = "layered_tee", Pants = "cargo_pants", Shoes = "skate_shoes", Jacket = "zip_hoodie", Hat = "beanie" } },
-	{ age = 10, label = "Age 10 - Trendy Brady", equipped = { Shirt = "flame_tee", Pants = "baggy_jeans", Shoes = "designer_sneakers", Jacket = "big_puffer", Accessory = "goo_chain" } },
-	{ age = 13, label = "Age 13 - Teen Brady", equipped = { Shirt = "goo_jersey", Pants = "parachute_pants", Shoes = "combat_boots", Glasses = "cool_shades", Accessory = "chunky_headphones" } },
-	{ age = 16, label = "Age 16 - Fashion Brady", equipped = { Shirt = "tour_tee", Pants = "waxed_denim", Shoes = "gold_kicks", Jacket = "leather_jacket", Glasses = "tiny_shades", Accessory = "wallet_chain" } },
-	{ age = 18, label = "Age 18 - Archive Brady", equipped = { Shirt = "archive_knit", Pants = "archive_cargos", Shoes = "split_toe_boots", Jacket = "vintage_goo_jacket", Glasses = "shield_shades", Accessory = "archive_tote" } },
-	{ age = 21, label = "Age 21 - Vintage Brady", equipped = { Outfit = "vintage_royal", Hat = "drip_crown", Glasses = "gold_frames" } },
-	{ age = 25, label = "Age 25 - Legendary Brady Goo", equipped = { Outfit = "legendary_goo", Hat = "certified_halo", Glasses = "prototype_goggles" } },
+	{ age = 3, label = "Age 3 - Little Brady", equipped = { Shirt = "goo_tee", Pants = "pajama_pants", Shoes = "white_lowtops" } },
+	{ age = 5, label = "Age 5 - Kid Brady", equipped = { Shirt = "smile_tee", Pants = "khaki_shorts", Shoes = "velcro_lights", Hat = "propeller_hat" } },
+	{ age = 8, label = "Age 8 - Drippy Brady", equipped = { Shirt = "plain_tee", Pants = "black_jeans", Shoes = "white_lowtops", Jacket = "plaid_flannel" } },
+	{ age = 10, label = "Age 10 - Trendy Brady", equipped = { Shirt = "malibu_crew", Pants = "olive_chinos", Shoes = "white_lowtops", Accessory = "statement_belt" } },
+	{ age = 13, label = "Age 13 - Teen Brady", equipped = { Shirt = "varsity_crew", Pants = "faded_denim", Shoes = "court_hightops", Glasses = "dark_ovals" } },
+	{ age = 16, label = "Age 16 - Fashion Brady", equipped = { Outfit = "malibu_fit" } },
+	{ age = 18, label = "Age 18 - Archive Brady", equipped = { Shirt = "archive_knit", Pants = "archive_cargos", Shoes = "split_toe_boots", Jacket = "vintage_goo_jacket", Glasses = "dark_ovals" } },
+	{ age = 21, label = "Age 21 - Vintage Brady", equipped = { Outfit = "varsity_fit" } },
+	{ age = 25, label = "Age 25 - Legendary Brady Goo", equipped = { Outfit = "legendary_goo", Glasses = "dark_ovals" } },
 }
 for index, fit in ipairs(FITS) do
 	local stage = AgeSystem.getStage(fit.age)
@@ -66,17 +66,19 @@ for index, fit in ipairs(FITS) do
 end
 
 local SPECIAL = {
+	{ "The Malibu Fit", { Outfit = "malibu_fit" } },
+	{ "The Flannel Fit", { Outfit = "flannel_fit" } },
+	{ "The Varsity Fit", { Outfit = "varsity_fit" } },
 	{ "THE GRAIL FIT", { Outfit = "the_grail_fit" } },
 	{ "Runway Look No. 7", { Outfit = "runway_look_7", Hat = "archive_hood" } },
 	{ "Banana Suit", { Outfit = "banana_suit", Glasses = "star_glasses" } },
-	{ "Sharp Black Suit", { Outfit = "sharp_suit", Hat = "top_hat" } },
 	{ "Space Cowboy", { Outfit = "space_cowboy" } },
 	{ "No pants (embarrassed)", { Shirt = "plain_tee", Hat = "yeehaw_hat", Accessory = "angel_wings" } },
 	{ "Archive trench + platforms", { Shirt = "longsleeve_blk", Pants = "flare_denim", Shoes = "platform_stompers", Jacket = "archive_trench", Accessory = "giant_goo_chain" } },
 	{ "Secrets: golden goo + ancient hat", { Shirt = "silk_shirt", Pants = "plaid_pants", Shoes = "invisible_shoes", Jacket = "mystery_jacket", Hat = "ancient_goo_hat", Accessory = "golden_goo" } },
 }
 for index, entry in ipairs(SPECIAL) do
-	entry[2].Hair = entry[2].Hair or "hair_layers"
+	entry[2].Hair = entry[2].Hair or "hair_brady_flow"
 	local model = BradyBuilder.build({ age = 25, equipped = entry[2], preview = true })
 	table.insert(scenes, { group = "special", label = entry[1], parts = dump(model), order = index })
 	model:Destroy()
