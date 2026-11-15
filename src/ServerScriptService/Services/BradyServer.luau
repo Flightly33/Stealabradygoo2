@@ -190,13 +190,17 @@ end
 
 -- A timed action (Eat, Dance, Trip, Celebrate...). Afterwards he returns to
 -- whatever long-running state he was in, or Idle.
-function BradyServer.act(rec, state, duration, pose)
+-- `soft` actions are idle fluff (random poses, trips): they do NOT mark Brady
+-- as busy, so the player can always interrupt them by feeding / cleaning him.
+function BradyServer.act(rec, state, duration, pose, soft)
 	if not rec.model then
 		return
 	end
 	rec.token += 1
 	local token = rec.token
-	rec.busyUntil = math.max(rec.busyUntil, os.clock() + duration)
+	if not soft then
+		rec.busyUntil = math.max(rec.busyUntil, os.clock() + duration)
+	end
 	BradyServer.stop(rec)
 	setStateAttribute(rec, state, pose)
 	task.delay(duration, function()
@@ -213,7 +217,7 @@ end
 
 -- Walks to a spot, then performs a state there.
 -- persistent = true keeps the state (Sleep / Mirror) until setState("Idle").
-function BradyServer.performAt(rec, cframe, state, duration, pose, persistent)
+function BradyServer.performAt(rec, cframe, state, duration, pose, persistent, soft)
 	if not rec.model then
 		return 0
 	end
@@ -230,7 +234,9 @@ function BradyServer.performAt(rec, cframe, state, duration, pose, persistent)
 	else
 		travel = BradyServer.walkTo(rec, cframe.Position, 14)
 	end
-	rec.busyUntil = math.max(rec.busyUntil, os.clock() + travel + (duration or 0.5))
+	if not soft then
+		rec.busyUntil = math.max(rec.busyUntil, os.clock() + travel + (duration or 0.5))
+	end
 	task.delay(travel, function()
 		if rec.token ~= token or not rec.model then
 			return
@@ -239,7 +245,7 @@ function BradyServer.performAt(rec, cframe, state, duration, pose, persistent)
 		if persistent then
 			BradyServer.setState(rec, state, pose)
 		else
-			BradyServer.act(rec, state, duration, pose)
+			BradyServer.act(rec, state, duration, pose, soft)
 		end
 	end)
 	return travel
@@ -445,17 +451,17 @@ local function idleBehaviour(player, rec, data)
 	local stage = AgeSystem.getStage(data.age)
 	if roll < 0.08 then
 		-- Brady randomly trips
-		BradyServer.act(rec, "Trip", 2.4)
+		BradyServer.act(rec, "Trip", 2.4, nil, true)
 		BradyServer.say(rec, Dialogue.pick("trip"), true)
 	elseif roll < 0.17 then
 		-- Brady randomly poses for no reason
 		local poses = InventorySystem.unlockedPoses(data, S.Data.session(player).passes)
 		local pose = poses[math.random(1, #poses)]
-		BradyServer.act(rec, "Pose", 2.6, pose.id)
+		BradyServer.act(rec, "Pose", 2.6, pose.id, true)
 		BradyServer.say(rec, Dialogue.pick("pose"), true)
 	elseif roll < 0.24 then
 		-- Brady checks himself out in the mirror
-		BradyServer.performAt(rec, S.House.stationCFrame(player, "Mirror"), "Mirror", 3)
+		BradyServer.performAt(rec, S.House.stationCFrame(player, "Mirror"), "Mirror", 3, nil, false, true)
 		BradyServer.say(rec, Dialogue.pick("mirror"), true)
 	elseif roll < 0.5 then
 		BradyServer.say(rec, needLine(data) or Dialogue.pick(stage.id), true)
