@@ -1,0 +1,5 @@
+# Rojo / tooling scratch
+/build/
+*.rbxl.lock
+*.rbxlx.lock
+sourcemap.json
