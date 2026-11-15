@@ -12,6 +12,7 @@
 	  * Finishing a collection lets you claim its reward exactly once.
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -101,7 +102,7 @@ local function buildHidden()
 		})
 		blob.CanTouch = true
 		blob:SetAttribute("Index", index)
-		game:GetService("CollectionService"):AddTag(blob, "HiddenGoo")
+		CollectionService:AddTag(blob, "HiddenGoo")
 		blob.Touched:Connect(function(hit)
 			local player = playerFromHit(hit)
 			if player then

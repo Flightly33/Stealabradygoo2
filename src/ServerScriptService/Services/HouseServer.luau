@@ -10,6 +10,7 @@
 	doorway or other furniture.
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -20,6 +21,7 @@ local Config = require(Modules.Config)
 local FurnitureSystem = require(Modules.FurnitureSystem)
 local HouseSystem = require(Modules.HouseSystem)
 local InventorySystem = require(Modules.InventorySystem)
+local Util = require(Modules.Util)
 local FurnitureBuilder = require(Modules.Builders.FurnitureBuilder)
 local PartUtil = require(Modules.Builders.PartUtil)
 local HouseBuilder = require(script.Parent.Parent.World.HouseBuilder)
@@ -128,7 +130,7 @@ local function spawnFurniture(player, plot, placement)
 		-- Toys can be played with (owner only).
 		local prompt = PartUtil.prompt(model.PrimaryPart, "Play", def.name, { distance = 8, name = "ToyPrompt" })
 		prompt:SetAttribute("OwnerUserId", player.UserId)
-		game:GetService("CollectionService"):AddTag(prompt, HouseBuilder.OwnerPromptTag)
+		CollectionService:AddTag(prompt, HouseBuilder.OwnerPromptTag)
 		prompt.Triggered:Connect(function(who)
 			if who == player then
 				S.Care.playToy(player, placement.id)
@@ -283,7 +285,7 @@ local function build(player)
 		ownerName = player.DisplayName,
 		ownerUserId = player.UserId,
 		showcase = showcaseItems(data),
-		trophies = { achievements = require(Modules.Util).count(data.achievements), wins = data.stats.showsWon },
+		trophies = { achievements = Util.count(data.achievements), wins = data.stats.showsWon },
 	})
 	plot.model, plot.info = model, info
 	connectStations(player, plot)
@@ -304,11 +306,11 @@ function HouseServer.upgrade(player)
 	end
 end
 
--- Refresh only the decorative display / trophies (cheap rebuild).
+-- Refreshes the clothing display + trophy shelf. They are part of the house
+-- model, so this rebuilds it in place (same size, Brady is not moved). It
+-- only happens on rare events: a new Legendary+ item or a secret find.
 function HouseServer.refreshDisplays(player)
-	-- The displays are part of the house model; a full rebuild keeps it simple
-	-- and only happens on rare events (new Epic+ item, fashion show win).
-	HouseServer.upgrade(player)
+	build(player)
 end
 
 -- Turns the shower water on for a few seconds.
@@ -324,12 +326,6 @@ function HouseServer.runShower(player, seconds)
 			emitter.Enabled = false
 		end
 	end)
-end
-
--- Folder where random events may drop props inside this player's house.
-function HouseServer.eventFolder(player)
-	local plot = byPlayer[player]
-	return plot and plot.info and plot.info.eventProps
 end
 
 function HouseServer.teleportTo(player, cframe)

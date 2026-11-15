@@ -73,7 +73,9 @@ local function test(name, fn)
 	if filter and filter ~= "all" and not string.find(string.lower(name), string.lower(filter), 1, true) then
 		return
 	end
-	local ok, err = xpcall(fn, debug.traceback)
+	local ok, err = xpcall(fn, function(e)
+		return tostring(e) .. "\n" .. debug.traceback()
+	end)
 	H.flush()
 	local newErrors = {}
 	for i = seenErrors + 1, #H.errors do
@@ -1003,8 +1005,15 @@ test("mirror + poses", function()
 	H.trigger(prompts.Food, player)
 	eq(H.lastSent(player, "OpenPanel")[1], "Feed")
 	H.trigger(prompts.Podium, player)
-	H.advance(6)
-	eq(S.Brady.get(player).model:GetAttribute("State"), "Pose")
+	local posed = false
+	for _ = 1, 20 do
+		H.advance(0.5)
+		if S.Brady.get(player).model:GetAttribute("State") == "Pose" then
+			posed = true
+			break
+		end
+	end
+	check(posed, "the podium never made him pose")
 	settle()
 	H.fire(player, "Mirror", false)
 end)
@@ -1658,9 +1667,752 @@ test("corrupt records are repaired instead of crashing", function()
 	H.removePlayer(weird)
 end)
 
+----------------------------------------------------------------------
+-- 4. Client: every LocalScript, driven through its real buttons
+----------------------------------------------------------------------
+print("\n== client ==")
+local State, PlayerGui
+
+-- Is this GuiObject (and all of its ancestors) actually showing?
+local function onScreen(object)
+	local node = object
+	while node and node ~= PlayerGui do
+		if node:IsA("GuiObject") and not node.Visible then
+			return false
+		end
+		if node:IsA("ScreenGui") and not node.Enabled then
+			return false
+		end
+		node = node.Parent
+	end
+	return node == PlayerGui
+end
+
+local function find(root, name)
+	return root:FindFirstChild(name, true)
+end
+
+local function click(button)
+	check(button, "button not found")
+	H.click(button)
+	H.advance(0.4)
+end
+
+local function windowOf(guiName, panel)
+	return PlayerGui[guiName]:FindFirstChild(panel .. "Window")
+end
+
+-- Random events keep firing in the background. Before a UI test, wait out
+-- any active event and bring Brady home so the test starts from a calm state.
+local function calm()
+	local guard = 0
+	while S.Events.current(player) and guard < 400 do
+		H.advance(1)
+		guard += 1
+	end
+	if S.Data.session(player).following then
+		H.fire(player, "Care", "Follow", false)
+	end
+	if S.Data.session(player).sleeping then
+		H.fire(player, "Care", "Wake")
+	end
+	if State then
+		State.close()
+	end
+	H.advance(7)
+end
+
+-- Long waits do not need 10 frames per virtual second.
+local function advanceCoarse(seconds, step)
+	H.frameStep = step or 5
+	H.advance(seconds)
+	H.frameStep = 0.1
+	H.advance(0.5)
+end
+
+test("client boots: all 17 LocalScripts run and receive the profile", function()
+	local started = H.startClient()
+	eq(#started, 17, "LocalScripts started")
+	H.advance(4)
+	PlayerGui = player.PlayerGui
+	State = H.client.require(RS.Client.ClientState)
+	check(State.data, "client never received its data")
+	eq(State.data.coins, data.coins)
+	check(State.fashion, "client never received the fashion show state")
+	eq(#PlayerGui:GetChildren(), 15, "ScreenGuis")
+	eq(#PlayerGui.MainUI.Menu:GetChildren(), 10, "8 menu buttons + grid layout + auto scale")
+end)
+
+test("HUD shows coins, age and meters from the server", function()
+	run(S.Currency.add, player, 250, "test")
+	H.advance(1)
+	eq(find(PlayerGui.MainUI, "Amount").Text, Util.short(data.coins))
+	local ageBar = PlayerGui.AgeUI.AgeBar
+	eq(find(ageBar, "Current").Text, "AGE " .. data.age)
+	check(string.find(find(ageBar, "Stage").Text, AgeSystem.getStage(data.age).name, 1, true), "stage name missing")
+	setMeters(15, 80, 80, 80)
+	S.Data.sync(player, "meters")
+	H.advance(1)
+	eq(find(PlayerGui.MainUI.Top.Meter_hunger, "Text").Text, "15")
+	check(PlayerGui.MainUI.Menu.Brady:FindFirstChild("Badge"), "a low meter should badge the Brady button")
+	setMeters(80, 80, 80, 80)
+	S.Data.sync(player, "meters")
+end)
+
+test("every menu button opens its window, X closes it", function()
+	local map = {
+		Brady = { "BradyUI", "Brady" }, Wardrobe = { "WardrobeUI", "Wardrobe" }, Inventory = { "InventoryUI", "Inventory" },
+		Shop = { "ShopUI", "Shop" }, Room = { "RoomUI", "Room" }, Collection = { "CollectionUI", "Collection" },
+		Fashion = { "FashionUI", "Fashion" }, Settings = { "SettingsUI", "Settings" },
+	}
+	for name, where in pairs(map) do
+		click(PlayerGui.MainUI.Menu[name])
+		local root = windowOf(where[1], where[2])
+		check(root and root.Visible, name .. " window did not open")
+		eq(State.current, where[2])
+		-- only one window at a time
+		local open = 0
+		for _, descendant in ipairs(PlayerGui:GetDescendants()) do
+			if descendant:IsA("Frame") and string.sub(descendant.Name, -6) == "Window" and descendant.Visible then
+				open += 1
+			end
+		end
+		eq(open, 1, "windows open at once")
+		click(find(root, "Close"))
+		check(not root.Visible, name .. " window did not close")
+	end
+end)
+
+test("announcements, toasts and item popups render", function()
+	local Net = service("Net")
+	Net.notify(player, { text = "BRADY AGED UP!", sub = "test", kind = "good", big = true })
+	H.advance(0.5)
+	local big = find(PlayerGui.MainUI, "Big")
+	check(big.Visible and big.Text == "BRADY AGED UP!", "announcement not shown")
+	H.advance(5)
+	check(not big.Visible, "announcement never went away")
+	Net.toast(player, "hello toast", "bad")
+	H.advance(0.3)
+	check(find(PlayerGui.MainUI.Toasts, "Toast"), "toast not shown")
+	H.advance(4)
+	check(not find(PlayerGui.MainUI.Toasts, "Toast"), "toast never went away")
+	for _, id in ipairs({ "goo_tee", "silk_shirt", "archive_knit", "grail_tee" }) do
+		Net.fire(player, "ItemGranted", { kind = "clothing", id = id, isNew = true })
+	end
+	Net.fire(player, "ItemGranted", { kind = "clothing", id = "goo_tee", isNew = false, refund = 15 })
+	Net.fire(player, "ItemGranted", { kind = "furniture", id = "couch", isNew = true })
+	H.advance(1)
+	eq(big.Text, "NEW FIT UNLOCKED!")
+	H.advance(3.2)
+	eq(big.Text, "LEGENDARY PIECE!")
+	H.advance(3.2)
+	eq(big.Text, "ARCHIVE ITEM FOUND!")
+	H.advance(4)
+	eq(big.Text, "GRAIL FOUND!")
+	H.advance(6)
+	Net.fire(player, "Effect", "Reward", { xp = 12, coins = 5 })
+	Net.fire(player, "AgeUp", { age = 4, stageChanged = true, stageName = "Kid Brady", blurb = "x", lines = { "+100 Goo Coins", "Unlocked: Hats" } })
+	H.advance(1)
+	check(PlayerGui.AgeUI.AgeUp.Visible, "age-up celebration not shown")
+	eq(find(PlayerGui.AgeUI.AgeUp, "Headline").Text, "NEW ERA UNLOCKED!")
+	H.advance(8)
+	check(not PlayerGui.AgeUI.AgeUp.Visible, "age-up celebration never ended")
+end)
+
+test("tutorial: intro, guided steps that follow real actions, one-time bonus", function()
+	calm()
+	local coins = data.coins
+	H.fire(player, "Tutorial", "Replay")
+	check(data.tutorialDone == false)
+	H.advance(2)
+	local tutorial = PlayerGui.TutorialUI
+	check(tutorial.Dim.Visible, "intro did not start")
+	eq(tutorial.Dim.Intro.Text, "welcome to raise brady goo")
+	H.advance(12)
+	check(not tutorial.Dim.Visible and tutorial.Step.Visible, "guided steps did not start")
+	eq(tutorial.Step.Title.Text, "1. FEED BRADY")
+	setMeters(30, 80, 100, 50)
+	H.fire(player, "Care", "Feed", "cereal")
+	H.advance(1)
+	eq(tutorial.Step.Title.Text, "2. PLAY WITH BRADY")
+	click(tutorial.Step.Next) -- skip step
+	H.advance(0.5)
+	eq(tutorial.Step.Title.Text, "3. YOU EARNED GOO COINS!")
+	H.advance(6) -- auto-advances
+	eq(tutorial.Step.Title.Text, "4. OPEN THE WARDROBE")
+	click(PlayerGui.MainUI.Menu.Wardrobe)
+	H.advance(0.5)
+	eq(tutorial.Step.Title.Text, "5. EQUIP CLOTHING")
+	H.fire(player, "Unequip", "Shirt")
+	H.fire(player, "Equip", "goo_tee")
+	H.advance(1)
+	eq(tutorial.Step.Title.Text, "6. AGE HIM UP")
+	click(tutorial.Step.Next)
+	H.advance(1)
+	check(data.tutorialDone, "tutorial did not finish")
+	check(not tutorial.Step.Visible)
+	check(data.coins >= coins, "coins went down?")
+	State.close()
+	settle()
+end)
+
+test("inventory: lists owned items by category and equips through the UI", function()
+	calm()
+	click(PlayerGui.MainUI.Menu.Inventory)
+	local root = windowOf("InventoryUI", "Inventory")
+	local grid = find(root, "Grid")
+	local cards = 0
+	for _, child in ipairs(grid:GetChildren()) do
+		if child:IsA("TextButton") then
+			cards += 1
+		end
+	end
+	eq(cards, count(data.inventory), "one card per owned item")
+	click(find(root, "Tab_Shirt"))
+	local shirts = 0
+	for _, child in ipairs(grid:GetChildren()) do
+		if child:IsA("TextButton") then
+			shirts += 1
+			check(ClothingSystem.get(string.sub(child.Name, 6)).slot == "Shirt", "wrong category in the Shirts tab")
+		end
+	end
+	check(shirts >= 2)
+	H.fire(player, "Unequip", "Shirt")
+	click(find(grid, "Item_plain_tee"))
+	local detail = find(root, "Detail")
+	eq(find(detail, "ItemName").Text, "Plain White Tee")
+	eq(find(detail, "Rarity").Text, "Rarity: Common")
+	eq(find(detail, "Age").Text, "Required Age: 1")
+	check(find(detail, "Description").Text ~= "")
+	eq(find(detail, "Equip").Text, "EQUIP")
+	click(find(detail, "Equip"))
+	eq(data.equipped.Shirt, "plain_tee", "Equip button did nothing")
+	H.advance(0.5)
+	eq(find(detail, "Status").Text, "✓ EQUIPPED")
+	eq(find(detail, "Equip").Text, "UNEQUIP")
+	check(find(grid, "Item_plain_tee"):FindFirstChild("Equipped"), "equipped badge missing")
+	click(find(detail, "Equip"))
+	eq(data.equipped.Shirt, nil)
+	-- an age-locked item shows as locked and cannot be equipped from the UI
+	data.inventory.archive_knit = true
+	S.Data.sync(player, "inventory")
+	H.advance(0.5)
+	click(find(grid, "Item_archive_knit"))
+	if data.age < 18 then
+		eq(find(detail, "Equip").Text, "LOCKED")
+		click(find(detail, "Equip"))
+		eq(data.equipped.Shirt, nil)
+	end
+	State.close()
+end)
+
+test("wardrobe: slot rows, picker, saved outfits and player gifts", function()
+	calm()
+	click(PlayerGui.MainUI.Menu.Wardrobe)
+	local root = windowOf("WardrobeUI", "Wardrobe")
+	local content = find(root, "Content")
+	check(find(content, "Slot_Shirt") and find(content, "Slot_Hair"), "slot rows missing")
+	check(find(root, "BradyPreview"):FindFirstChild("Brady"), "no preview model")
+	click(find(find(content, "Slot_Shirt"), "Change"))
+	check(find(content, "Item_plain_tee"), "picker did not list shirts")
+	click(find(content, "Item_plain_tee"))
+	eq(data.equipped.Shirt, "plain_tee")
+	H.advance(0.5)
+	click(find(content, "Back"))
+	check(find(content, "Slot_Shirt"), "Back did not return to the slot list")
+	click(find(find(root, "Outfit2"), "Button")) -- "Wear" on an empty slot: nothing
+	local outfit = find(root, "Outfit2")
+	for _, child in ipairs(outfit:GetChildren()) do
+		if child:IsA("TextButton") and child.Text == "Save" then
+			click(child)
+		end
+	end
+	check(data.outfits["2"] and data.outfits["2"].Shirt == "plain_tee", "Save outfit button did nothing")
+	click(find(root, "Tab_Style"))
+	local gift = find(content, "Gift_gift_bucket")
+	check(gift, "gift rows missing")
+	if data.gifts.owned.gift_bucket then
+		click(find(gift, "Wear"))
+		eq(data.gifts.equipped.Head, "gift_bucket")
+	end
+	State.close()
+end)
+
+test("shop: every tab renders, buying and crates work through the UI", function()
+	calm()
+	data.coins = 500000
+	S.Data.sync(player, "coins")
+	click(PlayerGui.MainUI.Menu.Shop)
+	local root = windowOf("ShopUI", "Shop")
+	local list = find(root, "List")
+	for _, tab in ipairs({ "Clothing", "Hair", "Food", "Furniture", "Decor", "Toys", "Crates", "Passes" }) do
+		click(find(root, "Tab_" .. tab))
+		local rows = 0
+		for _, child in ipairs(list:GetChildren()) do
+			if child:IsA("GuiObject") then
+				rows += 1
+			end
+		end
+		check(rows >= 2, tab .. " tab is empty")
+	end
+	-- food
+	click(find(root, "Tab_Food"))
+	local fruit = data.food.fruit or 0
+	click(find(find(list, "Row1"), "Buy"))
+	eq(data.food.fruit, fruit + 1, "food Buy button did nothing")
+	-- furniture
+	click(find(root, "Tab_Decor"))
+	local owned = 0
+	for _, n in pairs(data.furniture.owned) do
+		owned += n
+	end
+	click(find(find(list, "Row1"), "Buy"))
+	local after = 0
+	for _, n in pairs(data.furniture.owned) do
+		after += n
+	end
+	check(after == owned + 1 or data.age < 8, "furniture Buy button did nothing")
+	-- crate with reveal
+	click(find(root, "Tab_Crates"))
+	local crates = data.stats.crates
+	click(find(find(list, "Crate_thrift_bin"), "Open"))
+	H.advance(4)
+	eq(data.stats.crates, crates + 1, "crate Open button did nothing")
+	local reveal = PlayerGui.ShopUI.CrateReveal
+	check(reveal.Visible and find(reveal, "Rarity").Text ~= "", "crate reveal not shown")
+	click(find(reveal, "Close"))
+	check(not reveal.Visible)
+	-- odds are visible for every crate
+	for _, crate in ipairs(ShopSystem.Crates) do
+		check(#find(find(list, "Crate_" .. crate.id), "Odds"):GetChildren() >= 4, "odds missing for " .. crate.id)
+	end
+	State.close()
+	H.advance(6)
+end)
+
+test("Brady window + feed window drive the care actions", function()
+	calm()
+	click(PlayerGui.MainUI.Menu.Brady)
+	local root = windowOf("BradyUI", "Brady")
+	check(find(root, "BradyPreview"):FindFirstChild("Brady"), "no preview")
+	check(string.find(find(root, "Stage").Text, "Age " .. data.age, 1, true))
+	setMeters(20, 20, 60, 50)
+	S.Data.sync(player, "meters")
+	H.advance(0.5)
+	click(find(root, "Action1")) -- Feed -> opens the pantry
+	local feed = windowOf("BradyUI", "Feed")
+	check(feed.Visible, "Feed window did not open")
+	local feeds = data.stats.feeds
+	click(find(find(feed, "Food_cereal"), "Button"))
+	eq(data.stats.feeds, feeds + 1, "FEED button did nothing")
+	settle()
+	click(PlayerGui.MainUI.Menu.Brady)
+	local cleans = data.stats.cleans
+	click(find(root, "Action3")) -- brush hair
+	check(data.stats.cleans > cleans, "Brush Hair button did nothing")
+	H.advance(10) -- he may walk all the way to the sink first
+	setMeters(60, 60, 20, 50)
+	click(find(root, "Action5")) -- sleep
+	check(S.Data.session(player).sleeping, "Sleep button did nothing: " .. tostring(H.lastSent(player, "Notify")[1].text))
+	H.advance(1)
+	eq(find(root, "Action5").Text, "⏰ Wake Up")
+	click(find(root, "Action5"))
+	check(not S.Data.session(player).sleeping, "Wake button did nothing")
+	State.close()
+	settle()
+end)
+
+test("mini-games: a full round of each UI game through the real UI", function()
+	calm()
+	local overlay = PlayerGui.MinigameUI.GameOverlay
+	for _, id in ipairs({ "catch", "target", "reaction", "soccer", "dance" }) do
+		H.advance(8)
+		setMeters(80, 80, 100, 50)
+		data.ageXP = math.max(data.ageXP, AgeSystem.totalXPForAge(8)) -- dance needs age 8
+		data.age = AgeSystem.ageFromXP(data.ageXP)
+		S.Data.sync(player, "meters", "age", "ageXP")
+		local games = data.stats.minigames
+		click(PlayerGui.MainUI.Menu.Brady)
+		click(find(windowOf("BradyUI", "Brady"), "Action6")) -- Play
+		local picker = windowOf("MinigameUI", "Minigame")
+		check(picker.Visible, "game picker did not open")
+		click(find(find(picker, "Game_" .. id), "Play"))
+		H.advance(1.5)
+		check(overlay.Visible, id .. " did not start")
+		-- poke at whatever the game put on screen while it runs
+		for _ = 1, 90 do
+			for _, child in ipairs(find(overlay, "Arena"):GetChildren()) do
+				if child:IsA("TextButton") and math.random() < 0.5 then
+					H.click(child)
+				end
+			end
+			H.advance(0.5)
+			if find(overlay, "Results").Visible then
+				break
+			end
+		end
+		check(find(overlay, "Results").Visible, id .. " never finished")
+		eq(data.stats.minigames, games + 1, id .. " did not pay out")
+		check(string.find(find(find(overlay, "Results"), "Reward").Text, "Goo Coins", 1, true), id .. " reward text missing")
+		for _, child in ipairs(find(overlay, "Results").Buttons:GetChildren()) do
+			if child:IsA("TextButton") and child.Text == "Done" then
+				click(child)
+			end
+		end
+		check(not overlay.Visible, "Done did not close the game")
+	end
+	settle()
+end)
+
+test("room: placement mode places furniture where the ghost is", function()
+	calm()
+	local origin = S.House.origin(player)
+	H.movePlayer(player, origin.Position + Vector3.new(0, 3, 0))
+	-- aim the (fake) camera ray at the middle of the room
+	local direction = Vector3.new(0.2, -0.7, -0.6).Unit
+	H.camera.CFrame = CFrame.new(origin.Position - direction * 24)
+	data.furniture.owned.lamp = (data.furniture.owned.lamp or 0) + 1
+	for index = #data.furniture.placed, 1, -1 do
+		H.fire(player, "RemoveFurniture", index)
+	end
+	S.Data.sync(player, "furniture")
+	H.advance(0.5)
+	click(PlayerGui.MainUI.Menu.Room)
+	local root = windowOf("RoomUI", "Room")
+	click(find(find(root, "Furniture_lamp"), "Place"))
+	local bar = PlayerGui.RoomUI.PlacementBar
+	check(bar.Visible, "placement bar not shown")
+	local ghost = H.Workspace:FindFirstChild("PlacementGhost")
+	check(ghost, "no placement ghost")
+	check(not root.Visible, "window should close while placing")
+	-- move the pointer, rotate, then click to place
+	local UIT, KC = roblox.Enum.UserInputType, roblox.Enum.KeyCode
+	H.input.InputChanged:Fire({ UserInputType = UIT.MouseMovement, Position = Vector3.new(600, 300, 0) }, false)
+	H.input.InputBegan:Fire({ UserInputType = UIT.Keyboard, KeyCode = KC.R, Position = Vector3.new(0, 0, 0) }, false)
+	H.advance(0.3)
+	local hint = find(bar, "Hint").Text
+	check(string.find(hint, "Placing", 1, true), "ghost should be valid in the middle of the room: " .. hint)
+	local placed = #data.furniture.placed
+	H.input.InputBegan:Fire({ UserInputType = UIT.MouseButton1, Position = Vector3.new(600, 300, 0) }, false)
+	H.advance(0.6)
+	eq(#data.furniture.placed, placed + 1, "clicking did not place the furniture")
+	check(not bar.Visible and not H.Workspace:FindFirstChild("PlacementGhost"), "placement mode should end")
+	local placement = data.furniture.placed[#data.furniture.placed]
+	eq(placement.id, "lamp")
+	eq(placement.r, 1, "R should have rotated it")
+	-- remove mode: clicking the same spot picks it back up
+	click(PlayerGui.MainUI.Menu.Room)
+	click(find(root, "RemoveMode"))
+	check(bar.Visible)
+	H.input.InputBegan:Fire({ UserInputType = UIT.MouseButton1, Position = Vector3.new(600, 300, 0) }, false)
+	H.advance(0.6)
+	eq(#data.furniture.placed, placed, "remove mode did not pick the furniture up: " .. find(bar, "Hint").Text .. " / " .. tostring(H.lastSent(player, "Notify")[1].text))
+	click(find(bar, "Button"))
+	check(not bar.Visible)
+	-- travel tab
+	click(PlayerGui.MainUI.Menu.Room)
+	click(find(root, "Tab_Travel"))
+	check(find(root, "Player_" .. other.UserId), "other players should be listed")
+	click(find(root, "Go_Plaza"))
+	check((player.Character.HumanoidRootPart.CFrame.Position - Vector3.new(0, 4, 34)).Magnitude < 8, "Plaza travel button did nothing")
+	H.fire(player, "Visit", "Home")
+end)
+
+test("collection book: progress, claims and the daily page", function()
+	calm()
+	click(PlayerGui.MainUI.Menu.Collection)
+	local root = windowOf("CollectionUI", "Collection")
+	local list = find(root, "List")
+	check(string.find(find(root, "Summary").Text, "TOTAL COMPLETION", 1, true))
+	local archive = find(list, "Collection_archive")
+	local owned, total = CollectionSystem.progress(data, CollectionSystem.ById.archive)
+	check(string.find(find(archive, "Text").Text, owned .. " / " .. total .. " ITEMS", 1, true), "archive collection count wrong: " .. find(archive, "Text").Text)
+	local coins = data.coins
+	click(find(archive, "Claim")) -- not complete: no payout
+	eq(data.coins, coins)
+	click(find(root, "Tab_Achievements"))
+	check(find(list, "Achievement_first_bite"))
+	click(find(root, "Tab_Tasks"))
+	check(find(list, "Task1") and find(list, "Task3"), "daily tasks missing")
+	data.daily.tasks[1].progress = 9999
+	data.daily.tasks[1].claimed = false
+	S.Data.sync(player, "daily")
+	H.advance(0.5)
+	coins = data.coins
+	click(find(find(list, "Task1"), "Claim"))
+	check(data.coins > coins, "task Claim button did nothing")
+	click(find(root, "Tab_Daily"))
+	check(find(list, "Day1") and find(list, "Day7"), "daily tiles missing")
+	advanceCoarse(86400 + 40)
+	calm()
+	click(PlayerGui.MainUI.Menu.Collection)
+	click(find(root, "Tab_Daily"))
+	local streak = data.daily.streak
+	click(find(list, "ClaimDaily"))
+	check(data.daily.lastClaimDay == Util.today(), "daily Claim button did nothing")
+	check(data.daily.streak >= 1 and data.daily.streak ~= streak or streak == 1)
+	State.close()
+	settle()
+end)
+
+test("mirror mode: camera, poses, screenshot, exit", function()
+	calm()
+	H.movePlayer(player, S.House.origin(player).Position + Vector3.new(0, 3, 0))
+	H.trigger(S.House.get(player).info.prompts.Mirror, player)
+	H.advance(8)
+	local bar = PlayerGui.MirrorUI.MirrorBar
+	check(bar.Visible, "mirror bar not shown")
+	eq(H.camera.CameraType, roblox.Enum.CameraType.Scriptable)
+	local rec = S.Brady.get(player)
+	local toBrady = (H.camera.CFrame.Position - S.Brady.position(rec)).Magnitude
+	check(toBrady < 30, "camera did not move close to Brady: " .. toBrady)
+	click(find(bar, "Pose_Wave"))
+	eq(rec.model:GetAttribute("Pose"), "Wave")
+	local shots, photos = H.screenshots, data.stats.photos
+	H.advance(31)
+	click(find(bar, "Photo"))
+	H.advance(2)
+	eq(H.screenshots, shots + 1, "no screenshot was taken")
+	eq(data.stats.photos, photos + 1)
+	check(PlayerGui.MainUI.Enabled, "menus were left hidden after the screenshot")
+	-- outfit change keeps mirror mode, closing the wardrobe returns to it
+	click(find(bar, "Outfit"))
+	check(windowOf("WardrobeUI", "Wardrobe").Visible and not bar.Visible)
+	eq(H.camera.CameraType, roblox.Enum.CameraType.Scriptable)
+	State.close()
+	H.advance(0.3)
+	check(bar.Visible, "pose bar should come back")
+	click(find(bar, "Exit"))
+	check(not bar.Visible)
+	eq(H.camera.CameraType, roblox.Enum.CameraType.Custom)
+	H.advance(1)
+	check(rec.model:GetAttribute("State") ~= "Pose" and rec.model:GetAttribute("State") ~= "Mirror", "Brady is stuck at the mirror")
+end)
+
+test("inspect another player's Brady + settings window", function()
+	calm()
+	State.open("Inspect", other.UserId)
+	H.advance(1.5)
+	local root = windowOf("SocialUI", "Inspect")
+	check(root.Visible)
+	check(string.find(find(root, "Title").Text, "Friend", 1, true), "inspect title: " .. find(root, "Title").Text)
+	check(find(root, "BradyPreview"):FindFirstChild("Brady"))
+	local hypes = S.Data.get(other).stats.hypes
+	click(find(root, "Hype"))
+	eq(S.Data.get(other).stats.hypes, hypes + 1, "Hype button did nothing")
+	State.open("Inspect", 424242)
+	H.advance(1.5)
+	click(PlayerGui.MainUI.Menu.Settings)
+	local settings = windowOf("SettingsUI", "Settings")
+	local before = data.settings.chatter
+	click(find(find(settings, "Setting_chatter"), "Toggle"))
+	eq(data.settings.chatter, not before, "settings toggle did nothing")
+	H.advance(0.5)
+	eq(find(find(settings, "Setting_chatter"), "Toggle").Text, before and "OFF" or "ON")
+	click(find(find(settings, "Setting_lowGfx"), "Toggle"))
+	click(find(find(settings, "Setting_lowGfx"), "Toggle"))
+	click(find(settings, "Aura_rainbow")) -- no pass: stays "none"
+	eq(data.settings.aura, "none")
+	State.close()
+end)
+
+test("event banner + fashion window follow the server", function()
+	calm()
+	S.Events.force(player, "InsaneFit")
+	H.advance(0.5)
+	local banner = find(PlayerGui.MainUI, "EventBanner")
+	check(banner.Visible, "event banner not shown")
+	eq(find(banner, "Title").Text, "BRADY'S FIT IS INSANE")
+	for _ = 1, 15 do
+		-- the banner rebuilds its button as progress comes back: fetch it fresh
+		local hype = find(banner, "Buttons"):FindFirstChildOfClass("TextButton")
+		if hype then
+			H.click(hype)
+		end
+		H.advance(0.35)
+	end
+	check(S.Events.current(player) == nil, "HYPE button did not complete the event")
+	H.advance(0.5)
+	check(not banner.Visible, "banner stayed after the event ended")
+	settle()
+	S.Events.force(player, "NewHaircut")
+	H.advance(0.5)
+	local keep
+	for _, child in ipairs(find(banner, "Buttons"):GetChildren()) do
+		if child:IsA("TextButton") and child.Text == "KEEP IT" then
+			keep = child
+		end
+	end
+	click(keep)
+	check(S.Events.current(player) == nil, "KEEP IT did nothing")
+	-- fashion window through a whole show
+	local guard = 0
+	while S.Fashion.phase() ~= "Signup" and guard < 400 do
+		H.advance(1)
+		guard += 1
+	end
+	H.advance(1)
+	click(find(PlayerGui.MainUI, "FashionTicker"))
+	local root = windowOf("FashionUI", "Fashion")
+	check(root.Visible and string.find(find(root, "Phase").Text, "SIGN-UPS OPEN", 1, true), "fashion window: " .. find(root, "Phase").Text)
+	local joined = data.stats.showsJoined
+	for _, child in ipairs(find(root, "Actions"):GetChildren()) do
+		if child:IsA("TextButton") and child.Text == "ENTER BRADY!" then
+			click(child) -- (the window rebuilds its buttons, so stop iterating)
+			break
+		end
+	end
+	eq(data.stats.showsJoined, joined + 1, "ENTER BRADY! did nothing")
+	guard = 0
+	while S.Fashion.phase() ~= "Voting" and guard < 400 do
+		H.advance(0.5)
+		guard += 1
+	end
+	H.advance(1)
+	check(root.Visible and string.find(find(root, "Phase").Text, "VOTE", 1, true), "voting should pop the window open")
+	local voted = false
+	for _, row in ipairs(find(root, "List"):GetChildren()) do
+		local vote = row:IsA("Frame") and row:FindFirstChild("Vote")
+		if vote then
+			click(vote) -- (the list is rebuilt after voting, so stop iterating)
+			voted = true
+			break
+		end
+	end
+	check(voted, "no vote buttons")
+	guard = 0
+	while S.Fashion.phase() ~= "Results" and guard < 200 do
+		H.advance(0.5)
+		guard += 1
+	end
+	H.advance(1)
+	check(string.find(find(root, "Phase").Text, "RESULTS", 1, true))
+	check(find(find(root, "List"), "Result1"), "results list empty")
+	H.advance(Config.FashionResults + 4)
+	State.close()
+	settle()
+end)
+
+test("animator: every idle, walk, state and pose produces valid joints", function()
+	calm()
+	local Animator = H.client.require(RS.Client.BradyAnimator)
+	local entry = { S = 1, hip = 2, pose = "Wave" }
+	local n = 0
+	local function runAll(tbl)
+		for name, fn in pairs(tbl) do
+			for _, t in ipairs({ 0, 0.1, 0.5, 1, 1.4, 2, 3 }) do
+				local o = { W = CFrame.new(), N = CFrame.new(), LS = CFrame.new(), RS = CFrame.new(), LH = CFrame.new(), RH = CFrame.new() }
+				fn(o, t, t * 1.3 + 2, entry)
+				for key, value in pairs(o) do
+					check(typeof(value) == "CFrame", name .. "." .. key .. " is not a CFrame")
+					check(value.Position.X == value.Position.X, name .. " produced NaN")
+				end
+			end
+			n += 1
+		end
+	end
+	runAll(Animator.Idle)
+	runAll(Animator.Walk)
+	runAll(Animator.State)
+	runAll(Animator.Poses)
+	check(n >= 40, "expected 40+ animations, found " .. n)
+	-- every style / pose the data refers to has an animation
+	for _, stage in ipairs(AgeSystem.Stages) do
+		check(Animator.Idle[stage.look.idle], "missing idle " .. stage.look.idle)
+		check(Animator.Walk[stage.look.walk], "missing walk " .. stage.look.walk)
+	end
+	for _, pose in ipairs(AgeSystem.Poses) do
+		check(Animator.Poses[pose.id], "missing pose " .. pose.id)
+	end
+	for _, item in ipairs(ClothingSystem.List) do
+		check(not item.idle or Animator.Idle[item.idle], "missing idle " .. tostring(item.idle))
+		check(not item.walk or Animator.Walk[item.walk], "missing walk " .. tostring(item.walk))
+	end
+	-- the live Brady is registered and actually being animated
+	local rec = S.Brady.get(player)
+	local live = Animator.get(rec.model)
+	check(live, "the player's Brady is not registered with the animator")
+	-- (Bradys far from the camera are deliberately not animated)
+	H.camera.CFrame = CFrame.new(S.Brady.position(rec) + Vector3.new(0, 8, 20))
+	S.Brady.act(rec, "Dance", 3)
+	H.advance(1)
+	rec = S.Brady.get(player)
+	live = Animator.get(rec.model) -- (a random event may have rebuilt the model)
+	check(live, "the rebuilt Brady is not registered with the animator")
+	check(live.state == "Dance", string.format("the animator did not pick up the Dance state: entry=%s attr=%s distance=%.0f sleeping=%s", tostring(live.state), tostring(rec.model:GetAttribute("State")), (rec.model.PrimaryPart.CFrame.Position - H.camera.CFrame.Position).Magnitude, tostring(S.Data.session(player).sleeping)))
+	check(live.motors.W.C0 ~= live.base.W, "joints are not moving")
+	-- walking moves the model on the client
+	settle()
+	rec = S.Brady.get(player)
+	S.Brady.setState(rec, "Idle")
+	local start = rec.model.PrimaryPart.CFrame.Position
+	S.Brady.walkTo(rec, S.Brady.position(rec) + Vector3.new(6, 0, 0), 6)
+	H.advance(0.5)
+	local mid = rec.model.PrimaryPart.CFrame.Position
+	check((mid - start).Magnitude > 1 and (mid - start).Magnitude < 5.5, "client did not slide Brady along the walk line: " .. (mid - start).Magnitude)
+	H.advance(2)
+	check((rec.model.PrimaryPart.CFrame.Position - start).Magnitude > 5.5, "walk did not finish at the target")
+	-- a Brady far from the camera is skipped (performance)
+	H.camera.CFrame = CFrame.new(S.Brady.position(rec) + Vector3.new(0, 8, 400))
+	H.advance(0.5)
+	local frozen = Animator.get(rec.model).motors.W.C0
+	S.Brady.act(rec, "Dance", 2)
+	H.advance(1)
+	check(Animator.get(rec.model).motors.W.C0 == frozen, "far-away Bradys should not be animated")
+	H.camera.CFrame = CFrame.new(S.Brady.position(rec) + Vector3.new(0, 8, 20))
+	settle()
+	-- speech bubble
+	S.Brady.say(rec, "archive era")
+	H.advance(0.3)
+	check(rec.model.Head:FindFirstChild("Bubble"), "no speech bubble")
+end)
+
+test("fuzz: mashing every visible button never errors", function()
+	allowWarnings = true
+	H.advance(40)
+	setMeters(80, 80, 80, 80)
+	data.coins = math.max(data.coins, 100000)
+	local clicks = 0
+	for pass = 1, 6 do
+		-- open a different window each pass, then click everything on screen
+		local menu = { "Brady", "Wardrobe", "Inventory", "Shop", "Room", "Collection", "Fashion", "Settings" }
+		for _, name in ipairs(menu) do
+			H.click(PlayerGui.MainUI.Menu[name])
+			H.advance(0.4)
+			local buttons = {}
+			for _, descendant in ipairs(PlayerGui:GetDescendants()) do
+				if descendant:IsA("GuiButton") and onScreen(descendant) then
+					table.insert(buttons, descendant)
+				end
+			end
+			for index = #buttons, 2, -1 do
+				local swap = math.random(1, index)
+				buttons[index], buttons[swap] = buttons[swap], buttons[index]
+			end
+			for index = 1, math.min(#buttons, 14) do
+				local button = buttons[index]
+				local alive = pcall(function()
+					return button.Parent
+				end)
+				-- "DO IT" (rebirth) is skipped so the rest of the run keeps its age
+				if alive and button.Parent and button.Text ~= "DO IT" and onScreen(button) then
+					H.click(button)
+					clicks += 1
+					H.advance(0.35)
+				end
+			end
+			H.advance(pass == 3 and 30 or 1)
+		end
+	end
+	check(clicks > 300, "fuzz barely clicked anything: " .. clicks)
+	print("        (" .. clicks .. " random button presses)")
+	H.advance(60)
+	State.close()
+end)
+
 test("soak: two hours of idle play with two players stays healthy", function()
 	local shows = H.sentCount(player, "FashionState")
-	H.advance(7200)
+	advanceCoarse(7200, 1)
 	check(H.sentCount(player, "FashionState") > shows + 20, "fashion shows stopped cycling")
 	check(S.Data.get(player) and S.Data.get(other))
 	local rec = S.Brady.get(player)

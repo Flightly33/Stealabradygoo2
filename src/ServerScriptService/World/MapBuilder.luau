@@ -14,6 +14,7 @@
 	build() returns a MapInfo table the services use for positions.
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -221,7 +222,7 @@ function MapBuilder.build()
 	B("StoreWallL", v3(1.5, 20, 44), v3(-29.2, 10, -126), rgb(40, 40, 48), so)
 	B("StoreWallR", v3(1.5, 20, 44), v3(29.2, 10, -126), rgb(40, 40, 48), so)
 	local storeRoof = B("StoreRoof", v3(64, 1.5, 48), v3(0, 20.7, -126), rgb(232, 66, 78), { parent = store, collide = false })
-	game:GetService("CollectionService"):AddTag(storeRoof, "HouseRoof")
+	CollectionService:AddTag(storeRoof, "HouseRoof")
 	sign("GOO THRIFT & ARCHIVE", v3(44, 6, 1), CFrame.new(0, 25, -103.5), DARK, rgb(232, 66, 78))
 	B("StoreStripe", v3(60, 0.8, 0.6), v3(0, 19.6, -104.2), GOO, { parent = store, material = "Neon", collide = false })
 
@@ -337,7 +338,7 @@ function MapBuilder.build()
 		end
 	end
 	local arcadeRoof = B("ArcadeRoof", v3(58, 1.2, 52), v3(-132, 17.6, 0), rgb(34, 28, 60), { parent = arcade, collide = false })
-	game:GetService("CollectionService"):AddTag(arcadeRoof, "HouseRoof")
+	CollectionService:AddTag(arcadeRoof, "HouseRoof")
 	sign("GOO ARCADE", v3(1, 5, 30), CFrame.new(-104.5, 21, 0), DARK, rgb(120, 255, 200), Enum.NormalId.Right)
 	B("ArcadeNeon", v3(0.5, 0.5, 48), v3(-105.5, 17, 0), rgb(255, 110, 225), { parent = arcade, material = "Neon", collide = false, shadow = false })
 	sign("+25% rewards here!", v3(0.6, 2, 16), CFrame.new(-104.8, 13, 0), DARK, GOLD, Enum.NormalId.Right)
@@ -521,7 +522,7 @@ function MapBuilder.build()
 	-- The "soft rock": looks solid, but you can walk straight through it.
 	C("FakeRock", v3(10, 10, 3), v3(0, 5, 17), rock, { material = "Slate", collide = false })
 	local caveRoof = C("CaveRoof", v3(38, 3, 38), v3(0, 19.5, 0), rock, { material = "Slate", collide = false })
-	game:GetService("CollectionService"):AddTag(caveRoof, "HouseRoof")
+	CollectionService:AddTag(caveRoof, "HouseRoof")
 	for _, boulder in ipairs({ { -20, 4, 22, 12 }, { 21, 3, 20, 10 }, { 24, 5, -6, 14 }, { -24, 4, -8, 13 }, { 0, 6, -24, 16 } }) do
 		C("Boulder", v3(boulder[4], boulder[4], boulder[4]), v3(boulder[1], boulder[2], boulder[3]), PartUtil.shade(rock, 0.92), { shape = "Ball", material = "Slate" })
 	end

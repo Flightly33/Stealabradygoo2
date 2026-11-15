@@ -342,9 +342,9 @@ local function refreshEvent(event)
 	end
 	if event.task == "hype" then
 		local button = eventButton("HYPE! " .. event.progress .. "/" .. event.goal, C.pink, function(self)
-			State.send("EventAction", "Hype")
-			State.sound("hype")
 			UI.pop(self, 1.15)
+			State.sound("hype")
+			State.send("EventAction", "Hype")
 		end)
 		button.Size = UDim2.fromOffset(134, 60)
 		button.TextSize = 20

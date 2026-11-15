@@ -6,6 +6,7 @@
 	pays the reward itself - the client only draws the banner.
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -117,7 +118,7 @@ local function spawnProp(player, event, name, position, color, actionText, onGra
 	sparkles.Parent = core
 	local prompt = PartUtil.prompt(core, actionText, name, { distance = 10, name = "EventPrompt" })
 	prompt:SetAttribute("OwnerUserId", player.UserId)
-	game:GetService("CollectionService"):AddTag(prompt, "OwnerPrompt")
+	CollectionService:AddTag(prompt, "OwnerPrompt")
 	prompt.Triggered:Connect(function(who)
 		if who == player and active[player] == event then
 			onGrab()

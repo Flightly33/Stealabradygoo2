@@ -188,13 +188,17 @@ function UI.tween(instance, seconds, goals, style, direction)
 end
 
 -- Squash-and-pop used when things appear.
+-- A GuiObject should only ever have ONE UIScale, so this reuses the object's
+-- existing scale (auto-scale or button press scale) when it has one and
+-- animates back to that scale's resting value.
 function UI.pop(guiObject, from)
-	local scale = guiObject:FindFirstChild("PopScale")
+	local scale = guiObject:FindFirstChildOfClass("UIScale")
 	if not scale then
 		scale = UI.new("UIScale", { Name = "PopScale", Parent = guiObject })
 	end
-	scale.Scale = from or 0.7
-	UI.tween(scale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
+	local rest = scale:GetAttribute("Rest") or 1
+	scale.Scale = rest * (from or 0.7)
+	UI.tween(scale, 0.25, { Scale = rest }, Enum.EasingStyle.Back)
 end
 
 -- A chunky button. props: Size, Position, AnchorPoint, Color, TextColor,
@@ -313,11 +317,14 @@ function UI.autoScale(guiObject, kind)
 	local function update()
 		local camera = Workspace.CurrentCamera
 		local size = camera and camera.ViewportSize or Vector2.new(1280, 720)
+		local value
 		if kind == "window" then
-			scale.Scale = math.clamp(math.min(size.X / 820, size.Y / 500), 0.55, 1.35)
+			value = math.clamp(math.min(size.X / 820, size.Y / 500), 0.55, 1.35)
 		else
-			scale.Scale = math.clamp(math.min(size.X / 1100, size.Y / 640), 0.62, 1.25)
+			value = math.clamp(math.min(size.X / 1100, size.Y / 640), 0.62, 1.25)
 		end
+		scale:SetAttribute("Rest", value) -- UI.pop animates back to this
+		scale.Scale = value
 	end
 	update()
 	local camera = Workspace.CurrentCamera

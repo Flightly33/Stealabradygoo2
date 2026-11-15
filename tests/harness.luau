@@ -389,6 +389,7 @@ local function logClient(player, remote, ...)
 		byPlayer[remote.Name] = list
 	end
 	table.insert(list, table.pack(...))
+	list.total = (list.total or 0) + 1 -- the list itself is capped, the total is not
 	if #list > 400 then
 		table.remove(list, 1)
 	end
@@ -482,9 +483,6 @@ local function setupClasses()
 			end
 		end
 		return nil
-	end)
-	roblox.implementProperty("Players", "LocalPlayer", function()
-		return H.localPlayer
 	end)
 	event("Player", "CharacterAdded")
 	event("Player", "CharacterRemoving")
@@ -790,10 +788,19 @@ local function makeDataStoreService()
 end
 
 local tags = {} -- CollectionService: [tag] = signal
+local tagIndex = {} -- [tag] = { instance, ... } (kept so GetTagged is cheap, like the real one)
 local function makeCollectionService()
 	local service = {}
 	function service:AddTag(instance, tag)
 		instance:AddTag(tag)
+		local list = tagIndex[tag]
+		if not list then
+			list = {}
+			tagIndex[tag] = list
+		end
+		if not table.find(list, instance) then
+			table.insert(list, instance)
+		end
 		if tags[tag] then
 			tags[tag]:Fire(instance)
 		end
@@ -804,16 +811,25 @@ local function makeCollectionService()
 	function service:HasTag(instance, tag)
 		return instance:HasTag(tag)
 	end
+	-- Only instances that are still alive and inside the DataModel count.
 	function service:GetTagged(tag)
-		local list = {}
-		for _, root in ipairs({ Workspace, Players }) do
-			for _, descendant in ipairs(root:GetDescendants()) do
-				if descendant:HasTag(tag) then
-					table.insert(list, descendant)
-				end
+		local list = tagIndex[tag]
+		local result = {}
+		if not list then
+			return result
+		end
+		for index = #list, 1, -1 do
+			local instance = list[index]
+			local ok, inWorld = pcall(function()
+				return instance:HasTag(tag) and (instance:IsDescendantOf(Workspace) or instance:IsDescendantOf(Players))
+			end)
+			if not ok then
+				table.remove(list, index) -- destroyed
+			elseif inWorld then
+				table.insert(result, instance)
 			end
 		end
-		return list
+		return result
 	end
 	function service:GetInstanceAddedSignal(tag)
 		tags[tag] = tags[tag] or Signal.new("InstanceAdded:" .. tag)
@@ -1169,6 +1185,7 @@ function H.boot(placeBytes, options)
 
 	local camera = InstanceLib.new("Camera")
 	camera.Name = "Camera"
+	camera.CameraType = roblox.Enum.CameraType.Custom
 	camera.Parent = Workspace
 	Workspace.CurrentCamera = camera
 	H.camera = camera
@@ -1239,6 +1256,7 @@ function H.addPlayer(name, options)
 	player.Parent = Players
 	if options["local"] then
 		H.localPlayer = player
+		Players.LocalPlayer = player -- (Lune lets tests write this read-only property)
 	end
 	signalOf(Players, "PlayerAdded"):Fire(player)
 	H.flush()
@@ -1321,7 +1339,7 @@ end
 function H.sentCount(player, remoteName)
 	local byPlayer = H.clientLog[player]
 	local list = byPlayer and byPlayer[remoteName]
-	return list and #list or 0
+	return list and list.total or 0
 end
 
 -- Copies StarterGui / StarterPlayerScripts to the local player and runs

@@ -46,7 +46,7 @@ local tabs = UI.tabs(body, { { id = "Decorate", text = "🛋️ Decorate" }, { i
 	refresh()
 end, { Width = 736, TextSize = 16 })
 
-local header = UI.label(body, "", { Name = "Header", Size = UDim2.new(1, -230, 0, 30), Position = UDim2.fromOffset(0, 46), TextSize = 14, Font = UI.BodyFont, Color = C.sub, AlignX = Enum.TextXAlignment.Left })
+local header = UI.label(body, "", { Name = "Summary", Size = UDim2.new(1, -230, 0, 30), Position = UDim2.fromOffset(0, 46), TextSize = 14, Font = UI.BodyFont, Color = C.sub, AlignX = Enum.TextXAlignment.Left })
 local list = UI.scroll(body, { Name = "List", Size = UDim2.new(1, 0, 1, -84), Position = UDim2.fromOffset(0, 82) })
 UI.list(list, { pad = 6 })
 
@@ -253,7 +253,8 @@ local function placementAt(localPoint)
 	for pass = 1, 2 do
 		for index = #placed, 1, -1 do
 			local def = FurnitureSystem.get(placed[index].id)
-			if def and ((def.layer == "rug") == (pass == 2)) and HouseSystem.pointInRect(localPoint.X, localPoint.Z, FurnitureSystem.rectOf(placed[index])) then
+			-- (small margin so a tap exactly on a grid line still counts)
+			if def and ((def.layer == "rug") == (pass == 2)) and HouseSystem.pointInRect(localPoint.X, localPoint.Z, FurnitureSystem.rectOf(placed[index]), 0.05) then
 				return index
 			end
 		end

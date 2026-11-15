@@ -339,10 +339,6 @@ function HouseBuilder.build(parent, plotCFrame, opts)
 	furniture.Name = "Furniture"
 	furniture.Parent = model
 
-	local eventProps = Instance.new("Folder")
-	eventProps.Name = "EventProps"
-	eventProps.Parent = model
-
 	model.Parent = parent
 	return model, {
 		size = size,
@@ -352,7 +348,6 @@ function HouseBuilder.build(parent, plotCFrame, opts)
 		prompts = prompts,
 		showerEmitter = showerEmitter,
 		furniture = furniture,
-		eventProps = eventProps,
 	}
 end
 

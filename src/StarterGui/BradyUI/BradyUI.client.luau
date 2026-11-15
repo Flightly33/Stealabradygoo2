@@ -18,7 +18,6 @@ local Preview = require(Client:WaitForChild("Preview"))
 local AgeSystem = require(Modules:WaitForChild("AgeSystem"))
 local Config = require(Modules:WaitForChild("Config"))
 local FoodSystem = require(Modules:WaitForChild("FoodSystem"))
-local InventorySystem = require(Modules:WaitForChild("InventorySystem"))
 
 local gui = script.Parent
 local C = UI.Colors
@@ -207,5 +206,3 @@ State.on("meters", function(meters)
 	end
 end)
 
--- silence "unused" for the shared helper (kept for future pose shortcuts)
-local _ = InventorySystem
