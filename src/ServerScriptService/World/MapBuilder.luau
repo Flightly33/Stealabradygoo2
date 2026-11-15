@@ -358,7 +358,8 @@ function MapBuilder.build()
 		end
 	end
 
-	-- OBBY: floating platforms over a pool of goo, north of the arcade.
+	-- OBBY: floating platforms over a pool of goo, south-west of the arcade
+	-- (well away from the food court and the houses).
 	local obbyFolder = Instance.new("Folder")
 	obbyFolder.Name = "Obby"
 	obbyFolder.Parent = map
@@ -367,16 +368,16 @@ function MapBuilder.build()
 		part.CanTouch = true
 		return part
 	end
-	sign("🏃 GOO OBBY - step on START", v3(18, 3, 0.6), CFrame.new(-132, 8, -33), DARK, GOO)
-	B("ObbyPostL", v3(0.8, 8, 0.8), v3(-140, 4, -33), DARK, oo)
-	B("ObbyPostR", v3(0.8, 8, 0.8), v3(-124, 4, -33), DARK, oo)
-	local obbyStart = touchable(B("ObbyStart", v3(10, 0.6, 8), v3(-132, 0.3, -42), GOO, { parent = obbyFolder, material = "Neon" }))
-	local pool = touchable(B("GooPool", v3(96, 0.8, 96), v3(-150, 0.4, -98), rgb(96, 210, 60), { parent = obbyFolder, material = "Neon", transparency = 0.15 }))
-	B("PoolRim", v3(100, 0.5, 100), v3(-150, 0.2, -98), rgb(60, 60, 68), { parent = obbyFolder, collide = false })
+	sign("🏃 GOO OBBY - step on START", v3(18, 3, 0.6), CFrame.new(-132, 8, 33), DARK, GOO, Enum.NormalId.Front)
+	B("ObbyPostL", v3(0.8, 8, 0.8), v3(-140, 4, 33), DARK, oo)
+	B("ObbyPostR", v3(0.8, 8, 0.8), v3(-124, 4, 33), DARK, oo)
+	local obbyStart = touchable(B("ObbyStart", v3(10, 0.6, 8), v3(-132, 0.3, 42), GOO, { parent = obbyFolder, material = "Neon" }))
+	local pool = touchable(B("GooPool", v3(76, 0.8, 96), v3(-156, 0.4, 96), rgb(96, 210, 60), { parent = obbyFolder, material = "Neon", transparency = 0.15 }))
+	B("PoolRim", v3(80, 0.5, 100), v3(-156, 0.2, 96), rgb(60, 60, 68), { parent = obbyFolder, collide = false })
 
-	-- Path: 6 platforms north, 5 west, 3 north. Each one a bit higher.
+	-- Path: 6 platforms south, 5 west, 3 south. Each one a bit higher.
 	local steps = {}
-	local px, pz = -132, -42
+	local px, pz = -132, 42
 	local function addSteps(count, dx, dz)
 		for _ = 1, count do
 			px += dx
@@ -384,27 +385,27 @@ function MapBuilder.build()
 			table.insert(steps, v3(px, 0, pz))
 		end
 	end
-	addSteps(6, 0, -9)
+	addSteps(6, 0, 9)
 	addSteps(5, -9, 0)
-	addSteps(3, 0, -9)
+	addSteps(3, 0, 9)
 	local checkpoints, obbyHidden = {}, {}
 	local obbyFinish
 	for index, step in ipairs(steps) do
 		local y = 2 + index * 0.75
 		if index == #steps then
-			obbyFinish = touchable(B("ObbyFinish", v3(12, 1, 12), v3(step.X, y, step.Z - 3), GOLD, { parent = obbyFolder, material = "Neon" }))
-			sign("FINISH", v3(8, 2.4, 0.5), CFrame.new(step.X, y + 6, step.Z - 9), DARK, GOLD)
-			obbyHidden.finish = CFrame.new(step.X + 4, y + 0.6, step.Z - 7)
-			obbyHidden.finishFar = CFrame.new(step.X - 4.5, y + 0.6, step.Z - 7.5)
+			obbyFinish = touchable(B("ObbyFinish", v3(12, 1, 12), v3(step.X, y, step.Z + 3), GOLD, { parent = obbyFolder, material = "Neon" }))
+			sign("FINISH", v3(8, 2.4, 0.5), CFrame.new(step.X, y + 6, step.Z + 9), DARK, GOLD, Enum.NormalId.Front)
+			obbyHidden.finish = CFrame.new(step.X + 4, y + 0.6, step.Z + 7)
+			obbyHidden.finishFar = CFrame.new(step.X - 4.5, y + 0.6, step.Z + 7.5)
 		elseif index == 5 or index == 10 then
 			local checkpoint = touchable(B("ObbyCheckpoint", v3(8, 1, 8), v3(step.X, y, step.Z), rgb(255, 230, 90), { parent = obbyFolder, material = "Neon" }))
 			table.insert(checkpoints, checkpoint)
 			if index == 5 then
-				obbyHidden.checkpoint = CFrame.new(step.X + 2.8, y + 0.6, step.Z - 2.8)
+				obbyHidden.checkpoint = CFrame.new(step.X + 2.8, y + 0.6, step.Z + 2.8)
 			end
 		else
-			local spin = index % 3 == 0
-			B("ObbyStep", spin and v3(4, 1, 4) or v3(5.5, 1, 5.5), v3(step.X, y, step.Z), spin and rgb(255, 110, 225) or rgb(90, 190, 255), oo)
+			local small = index % 3 == 0
+			B("ObbyStep", small and v3(4, 1, 4) or v3(5.5, 1, 5.5), v3(step.X, y, step.Z), small and rgb(255, 110, 225) or rgb(90, 190, 255), oo)
 		end
 	end
 
@@ -563,7 +564,7 @@ function MapBuilder.build()
 		spot(120.5, 1.3, -114.5), -- pond island
 		spot(-108, 0.5, -117), -- behind the giant burger
 		spot(5, 0.4, 58 + streetLength - 2), -- end of the street
-		spot(-162, 0.3, 27), -- behind the arcade
+		spot(-164, 0.9, -19), -- tucked behind the arcade machines
 		spot(-300, 0.3, 380), -- far corner of the map
 	}
 
@@ -591,7 +592,7 @@ function MapBuilder.build()
 			finish = obbyFinish,
 			checkpoints = checkpoints,
 			kill = { pool },
-			respawn = CFrame.new(-132, 0.6, -36),
+			respawn = CFrame.new(-132, 0.6, 36),
 		},
 		hiddenSpots = hiddenSpots,
 		secretSpots = secretSpots,

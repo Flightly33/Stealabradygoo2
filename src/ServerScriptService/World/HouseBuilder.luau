@@ -157,7 +157,14 @@ function HouseBuilder.build(parent, plotCFrame, opts)
 			p("Pillar", v3(H, 1.6, 1.6), v3(x, H / 2 - 0.5, h + 2.6), WHITE, { shape = "Cylinder", rot = UP, material = "Marble" })
 			p("PillarCap", v3(2.4, 0.6, 2.4), v3(x, H - 0.4, h + 2.6), GOLD, { material = "Glass", reflectance = 0.3 })
 		end
-		p("Glow", v3(size + 5.7, 0.2, size + 5.7), v3(0, H + 1.1, 0), GOLD, { material = "Neon", collide = false, shadow = false })
+		-- a thin glowing gold edge around the roof (not a whole glowing slab)
+		local edge = size / 2 + 2.7
+		for _, side in ipairs({ -1, 1 }) do
+			local stripA = p("RoofGlow", v3(size + 5.8, 0.3, 0.5), v3(0, H + 1.1, side * edge), GOLD, { material = "Neon", collide = false, shadow = false })
+			local stripB = p("RoofGlow", v3(0.5, 0.3, size + 5.8), v3(side * edge, H + 1.1, 0), GOLD, { material = "Neon", collide = false, shadow = false })
+			CollectionService:AddTag(stripA, HouseBuilder.RoofTag)
+			CollectionService:AddTag(stripB, HouseBuilder.RoofTag)
+		end
 	end
 
 	-- Sign over the door.
