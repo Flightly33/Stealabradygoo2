@@ -28,15 +28,16 @@ local body = window.body
 
 local TABS = {
 	{ id = "All", text = "All" },
-	{ id = "Shirt", text = "👕 Shirts" },
-	{ id = "Pants", text = "👖 Pants" },
-	{ id = "Shoes", text = "👟 Shoes" },
-	{ id = "Jacket", text = "🧥 Jackets" },
-	{ id = "Accessory", text = "📿 Acc." },
-	{ id = "Hat", text = "🧢 Hats" },
-	{ id = "Glasses", text = "🕶️ Glasses" },
+	{ id = "Tops", text = "👕 Tops" },
+	{ id = "Bottoms", text = "👖 Bottoms" },
+	{ id = "Extras", text = "🕶️ Extras" },
 	{ id = "Outfit", text = "✨ Outfits" },
-	{ id = "Hair", text = "💇 Hair" },
+}
+local GROUPS = {
+	Tops = { Shirt = true, Jacket = true },
+	Bottoms = { Pants = true, Shoes = true },
+	Extras = { Hat = true, Glasses = true, Accessory = true, Hair = true },
+	Outfit = { Outfit = true },
 }
 
 local currentSlot = "All"
@@ -46,7 +47,7 @@ local refresh -- forward declaration
 local tabs = UI.tabs(body, TABS, function(id)
 	currentSlot = id
 	refresh()
-end, { Width = 816, TextSize = 12, TabHeight = 34 })
+end, { Width = 816, TextSize = 16, TabHeight = 36 })
 
 local grid = UI.scroll(body, { Name = "Grid", Size = UDim2.new(1, -262, 1, -72), Position = UDim2.fromOffset(0, 44) })
 UI.grid(grid, 104, 122, 8)
@@ -131,7 +132,13 @@ function refresh()
 	end
 	local data = State.data
 	UI.clear(grid)
-	local items = InventorySystem.ownedItems(data, currentSlot ~= "All" and currentSlot or nil)
+	local group = GROUPS[currentSlot]
+	local items = {}
+	for _, item in ipairs(InventorySystem.ownedItems(data)) do
+		if not group or group[item.slot] then
+			table.insert(items, item)
+		end
+	end
 	for index, item in ipairs(items) do
 		local locked = nil
 		if not InventorySystem.canEquip(data, item.id) then

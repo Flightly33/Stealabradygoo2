@@ -104,6 +104,23 @@ line. The most likely first-run issues are visual, not logical.
 
 ---
 
+## How the menus are laid out
+
+Kept deliberately simple. Four big buttons on the left:
+
+| Button | Opens |
+| --- | --- |
+| 🧒 Brady | his needs + 5 actions: Feed, Clean, Sleep, Play, Follow me |
+| 👕 Closet | dress Brady, saved outfits, gifts for your own avatar |
+| 🛒 Shop | 5 tabs: Clothes, Food, Home, Crates, Passes |
+| ☰ More | Fashion Show, Collection, Room & Travel, All Items, Settings |
+
+The top of the screen only shows Goo Coins and the Age bar. The fashion-show
+ticker appears only while a show is running, and red dots point you to
+anything waiting (low needs, a daily reward, an open show).
+
+---
+
 ## Graphics
 
 Roblox does not allow custom shaders. These are the graphics levers it does

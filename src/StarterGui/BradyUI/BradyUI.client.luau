@@ -55,23 +55,22 @@ for index, meter in ipairs(METERS) do
 end
 
 local actions = UI.box(right, { Name = "Actions", Size = UDim2.new(1, 0, 1, -140), Position = UDim2.fromOffset(0, 138) })
-UI.grid(actions, 160, 62, 8)
+UI.grid(actions, 240, 70, 10)
 
 local function action(order, text, color, callback)
-	return UI.button(actions, text, { Name = "Action" .. order, Size = UDim2.fromOffset(160, 62), Color = color, TextSize = 17, LayoutOrder = order }, callback)
+	return UI.button(actions, text, { Name = "Action" .. order, Size = UDim2.fromOffset(240, 70), Color = color, TextSize = 22, LayoutOrder = order }, callback)
 end
 
 action(1, "🍔 Feed", C.gold, function()
 	State.open("Feed")
 end)
-action(2, "🚿 Shower", C.blue, function()
-	State.send("Care", "Shower")
-end)
-action(3, "💇 Brush Hair", C.blue, function()
-	State.send("Care", "BrushHair")
-end)
-action(4, "👟 Clean Shoes", C.blue, function()
-	State.send("Care", "CleanShoes")
+-- one "Clean" button: shower when he's dirty, otherwise a quick hair brush
+action(2, "🧼 Clean", C.blue, function()
+	if State.data.meters.clean < 80 then
+		State.send("Care", "Shower")
+	else
+		State.send("Care", "BrushHair")
+	end
 end)
 local sleepButton = action(5, "🛏️ Sleep", C.purple, function()
 	State.send("Care", State.session.sleeping and "Wake" or "Sleep")
@@ -82,13 +81,7 @@ end)
 local followButton = action(7, "🚶 Follow me", C.goo, function()
 	State.send("Care", "Follow", not State.session.following)
 end)
-action(8, "📣 Call Brady", C.goo, function()
-	State.send("Care", "Call")
-end)
-action(9, "🏠 Go Home", C.sub, function()
-	State.send("Visit", "Home")
-	State.close()
-end)
+
 
 local function refreshStatus()
 	local data = State.data

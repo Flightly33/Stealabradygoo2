@@ -56,7 +56,7 @@ local STEPS = {
 	},
 	{
 		title = "4. OPEN THE WARDROBE",
-		text = "tap 👕 Wardrobe on the left.",
+		text = "tap 👕 Closet on the left.",
 		done = function()
 			return State.current == "Wardrobe"
 		end,

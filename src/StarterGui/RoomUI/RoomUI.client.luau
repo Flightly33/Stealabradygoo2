@@ -338,7 +338,7 @@ local function showDecorate()
 		UI.label(list, "no furniture yet - buy some in the Shop!", { Size = UDim2.new(1, -12, 0, 60), TextSize = 16, Font = UI.BodyFont, Color = C.sub })
 	end
 	UI.button(list, "🛒 Buy furniture", { Name = "ShopLink", Size = UDim2.new(1, -12, 0, 40), Color = C.gold, TextSize = 17, LayoutOrder = 999 }, function()
-		State.open("Shop", "Furniture")
+		State.open("Shop", "Home")
 	end)
 end
 

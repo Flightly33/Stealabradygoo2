@@ -61,73 +61,58 @@ State.on("coins", function(coins)
 	end)
 end)
 
-local METERS = {
-	{ key = "hunger", icon = "🍔", color = C.gold },
-	{ key = "clean", icon = "🫧", color = C.blue },
-	{ key = "energy", icon = "⚡", color = C.goo },
-	{ key = "fun", icon = "🎮", color = C.pink },
-}
-local meterBars = {}
-for index, meter in ipairs(METERS) do
-	local chip = UI.new("TextButton", {
-		Name = "Meter_" .. meter.key,
-		Size = UDim2.fromOffset(84, 44),
-		Position = UDim2.fromOffset(198 + (index - 1) * 90, 0),
-		BackgroundColor3 = C.bg,
-		BorderSizePixel = 0,
-		AutoButtonColor = false,
-		Text = "",
-		Parent = top,
-	})
-	UI.corner(chip, 14)
-	UI.stroke(chip, 3, C.dark)
-	UI.gradient(chip, 0.7)
-	UI.label(chip, meter.icon, { Size = UDim2.fromOffset(30, 44), Position = UDim2.fromOffset(2, 0), TextSize = 22 })
-	local bar = UI.bar(chip, { Size = UDim2.fromOffset(44, 16), Position = UDim2.fromOffset(34, 14), Color = meter.color, Corner = 6, TextSize = 11 })
-	meterBars[meter.key] = bar
-	chip.Activated:Connect(function()
-		State.sound("click")
-		State.toggle("Brady")
-	end)
-end
-
-State.on("meters", function(meters)
-	for _, meter in ipairs(METERS) do
-		local value = meters[meter.key]
-		meterBars[meter.key].set(value / 100, tostring(math.floor(value + 0.5)), value < 20 and C.red or meter.color)
-	end
-end)
+-- Brady's needs are shown in the Brady window; the HUD only shows a red
+-- dot on the Brady button when one of them is low.
 
 ----------------------------------------------------------------------
--- MAIN BUTTONS
+-- MAIN BUTTONS: four big buttons. Everything else lives under "More".
 ----------------------------------------------------------------------
 local BUTTONS = {
 	{ panel = "Brady", icon = "🧒", text = "Brady", color = C.goo },
-	{ panel = "Wardrobe", icon = "👕", text = "Wardrobe", color = C.pink },
-	{ panel = "Inventory", icon = "🎒", text = "Inventory", color = C.blue },
+	{ panel = "Wardrobe", icon = "👕", text = "Closet", color = C.pink },
 	{ panel = "Shop", icon = "🛒", text = "Shop", color = C.gold },
-	{ panel = "Room", icon = "🏠", text = "Room", color = C.purple },
-	{ panel = "Collection", icon = "📖", text = "Collection", color = C.red },
-	{ panel = "Fashion", icon = "🌟", text = "Fashion Show", color = C.pink },
-	{ panel = "Settings", icon = "⚙️", text = "Settings", color = C.sub },
+	{ panel = "More", icon = "☰", text = "More", color = C.sub },
+}
+local MORE = {
+	{ panel = "Fashion", icon = "🌟", text = "Fashion Show" },
+	{ panel = "Collection", icon = "📖", text = "Collection" },
+	{ panel = "Room", icon = "🏠", text = "Room & Travel" },
+	{ panel = "Inventory", icon = "🎒", text = "All Items" },
+	{ panel = "Settings", icon = "⚙️", text = "Settings" },
 }
 
-local menu = UI.box(gui, { Name = "Menu", Size = UDim2.fromOffset(158, 316), Position = UDim2.new(0, 8, 0.5, 10), AnchorPoint = Vector2.new(0, 0.5) })
+local menu = UI.box(gui, { Name = "Menu", Size = UDim2.fromOffset(84, 340), Position = UDim2.new(0, 8, 0.5, 10), AnchorPoint = Vector2.new(0, 0.5) })
 UI.autoScale(menu, "hud")
-UI.grid(menu, 74, 74, 5)
+UI.list(menu, { pad = 8 })
 local menuButtons = {}
 for index, def in ipairs(BUTTONS) do
-	local button = UI.button(menu, "", { Name = def.panel, Size = UDim2.fromOffset(74, 74), Color = def.color, LayoutOrder = index, Corner = 16 }, function()
+	local button = UI.button(menu, "", { Name = def.panel, Size = UDim2.fromOffset(78, 78), Color = def.color, LayoutOrder = index, Corner = 18 }, function()
 		State.toggle(def.panel)
 	end)
-	UI.label(button, def.icon, { Size = UDim2.new(1, 0, 0, 44), Position = UDim2.fromOffset(0, 4), TextSize = 32 })
-	UI.label(button, def.text, { Size = UDim2.new(1, -4, 0, 24), Position = UDim2.new(0, 2, 1, -26), TextSize = 12, Color = C.dark })
+	UI.label(button, def.icon, { Size = UDim2.new(1, 0, 0, 46), Position = UDim2.fromOffset(0, 4), TextSize = 34 })
+	UI.label(button, def.text, { Size = UDim2.new(1, -4, 0, 24), Position = UDim2.new(0, 2, 1, -26), TextSize = 14, Color = C.dark })
 	menuButtons[def.panel] = button
 end
 
+-- "More" window: one tidy list of the less-used screens.
+local more = UI.window(gui, { name = "More", title = "☰ More", width = 380, height = 420 })
+UI.list(more.body, { pad = 8 })
+for index, def in ipairs(MORE) do
+	UI.button(more.body, def.icon .. "  " .. def.text, { Name = def.panel, Size = UDim2.new(1, 0, 0, 58), Color = C.panel2, TextColor = C.text, TextSize = 22, LayoutOrder = index }, function()
+		State.open(def.panel)
+	end)
+end
+menuButtons.Fashion = more.body:FindFirstChild("Fashion")
+menuButtons.Collection = more.body:FindFirstChild("Collection")
+
 -- A red dot on a menu button when something is waiting there.
+local waiting = {}
 local function setBadge(panel, visible)
 	local button = menuButtons[panel]
+	if panel ~= "More" and panel ~= "Brady" then
+		waiting[panel] = visible or nil
+		task.defer(setBadge, "More", next(waiting) ~= nil)
+	end
 	local badge = button:FindFirstChild("Badge")
 	if visible and not badge then
 		badge = UI.frame(button, { Name = "Badge", Size = UDim2.fromOffset(20, 20), Position = UDim2.new(1, -2, 0, 2), AnchorPoint = Vector2.new(1, 0), Color = C.red, Corner = 10, ZIndex = 5 })
@@ -400,7 +385,7 @@ State.listen("ObbyState", function(state)
 		end
 	else
 		obbyPill.Visible = false
-		ticker.Visible = true
+		ticker.Visible = State.fashion ~= nil and State.fashion.phase ~= "Idle"
 		obbyStart = nil
 		if state.result then
 			announce({ text = "OBBY COMPLETE!", sub = string.format("%.1fs   +%d Goo Coins   +%d XP", state.result.time, state.result.coins, state.result.xp), kind = "good", sound = "rare" })
@@ -431,6 +416,8 @@ end
 
 State.fashionChanged:Connect(function(state)
 	local live = state.phase == "Signup" or state.phase == "Voting"
+	-- the ticker only appears while there's something to do
+	ticker.Visible = state.phase ~= "Idle" and not obbyPill.Visible
 	ticker.BackgroundColor3 = live and C.gold or C.bg
 	ticker.TextColor3 = live and C.dark or C.text
 	setBadge("Fashion", live)

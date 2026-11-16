@@ -1728,6 +1728,20 @@ local function find(root, name)
 	return root:FindFirstChild(name, true)
 end
 
+-- Opens a screen the way a player would: a main button, or More -> button.
+local function openMenu(name)
+	local menu = PlayerGui.MainUI.Menu
+	if menu:FindFirstChild(name) then
+		H.click(menu[name])
+	else
+		State.close()
+		H.click(menu.More)
+		H.advance(0.2)
+		H.click(PlayerGui.MainUI.MoreWindow.Panel.Body[name])
+	end
+	H.advance(0.4)
+end
+
 local function click(button)
 	check(button, "button not found")
 	H.click(button)
@@ -1776,7 +1790,7 @@ test("client boots: all 18 LocalScripts run and receive the profile", function()
 	eq(State.data.coins, data.coins)
 	check(State.fashion, "client never received the fashion show state")
 	eq(#PlayerGui:GetChildren(), 15, "ScreenGuis")
-	eq(#PlayerGui.MainUI.Menu:GetChildren(), 10, "8 menu buttons + grid layout + auto scale")
+	eq(#PlayerGui.MainUI.Menu:GetChildren(), 6, "4 menu buttons + list layout + auto scale")
 end)
 
 test("HUD shows coins, age and meters from the server", function()
@@ -1789,7 +1803,6 @@ test("HUD shows coins, age and meters from the server", function()
 	setMeters(15, 80, 80, 80)
 	S.Data.sync(player, "meters")
 	H.advance(1)
-	eq(find(PlayerGui.MainUI.Top.Meter_hunger, "Text").Text, "15")
 	check(PlayerGui.MainUI.Menu.Brady:FindFirstChild("Badge"), "a low meter should badge the Brady button")
 	setMeters(80, 80, 80, 80)
 	S.Data.sync(player, "meters")
@@ -1802,7 +1815,7 @@ test("every menu button opens its window, X closes it", function()
 		Fashion = { "FashionUI", "Fashion" }, Settings = { "SettingsUI", "Settings" },
 	}
 	for name, where in pairs(map) do
-		click(PlayerGui.MainUI.Menu[name])
+		openMenu(name)
 		local root = windowOf(where[1], where[2])
 		check(root and root.Visible, name .. " window did not open")
 		eq(State.current, where[2])
@@ -1876,7 +1889,7 @@ test("tutorial: intro, guided steps that follow real actions, one-time bonus", f
 	eq(tutorial.Step.Title.Text, "3. YOU EARNED GOO COINS!")
 	H.advance(6) -- auto-advances
 	eq(tutorial.Step.Title.Text, "4. OPEN THE WARDROBE")
-	click(PlayerGui.MainUI.Menu.Wardrobe)
+	openMenu("Wardrobe")
 	H.advance(0.5)
 	eq(tutorial.Step.Title.Text, "5. EQUIP CLOTHING")
 	H.fire(player, "Unequip", "Shirt")
@@ -1894,7 +1907,7 @@ end)
 
 test("inventory: lists owned items by category and equips through the UI", function()
 	calm()
-	click(PlayerGui.MainUI.Menu.Inventory)
+	openMenu("Inventory")
 	local root = windowOf("InventoryUI", "Inventory")
 	local grid = find(root, "Grid")
 	local cards = 0
@@ -1904,12 +1917,13 @@ test("inventory: lists owned items by category and equips through the UI", funct
 		end
 	end
 	eq(cards, count(data.inventory), "one card per owned item")
-	click(find(root, "Tab_Shirt"))
+	click(find(root, "Tab_Tops"))
 	local shirts = 0
 	for _, child in ipairs(grid:GetChildren()) do
 		if child:IsA("TextButton") then
 			shirts += 1
-			check(ClothingSystem.get(string.sub(child.Name, 6)).slot == "Shirt", "wrong category in the Shirts tab")
+			local slot = ClothingSystem.get(string.sub(child.Name, 6)).slot
+			check(slot == "Shirt" or slot == "Jacket", "wrong category in the Tops tab")
 		end
 	end
 	check(shirts >= 2)
@@ -1944,7 +1958,7 @@ end)
 
 test("wardrobe: slot rows, picker, saved outfits and player gifts", function()
 	calm()
-	click(PlayerGui.MainUI.Menu.Wardrobe)
+	openMenu("Wardrobe")
 	local root = windowOf("WardrobeUI", "Wardrobe")
 	local content = find(root, "Content")
 	check(find(content, "Slot_Shirt") and find(content, "Slot_Hair"), "slot rows missing")
@@ -1978,10 +1992,10 @@ test("shop: every tab renders, buying and crates work through the UI", function(
 	calm()
 	data.coins = 500000
 	S.Data.sync(player, "coins")
-	click(PlayerGui.MainUI.Menu.Shop)
+	openMenu("Shop")
 	local root = windowOf("ShopUI", "Shop")
 	local list = find(root, "List")
-	for _, tab in ipairs({ "Clothing", "Hair", "Food", "Furniture", "Decor", "Toys", "Crates", "Passes" }) do
+	for _, tab in ipairs({ "Clothing", "Food", "Home", "Crates", "Passes" }) do
 		click(find(root, "Tab_" .. tab))
 		local rows = 0
 		for _, child in ipairs(list:GetChildren()) do
@@ -1997,7 +2011,7 @@ test("shop: every tab renders, buying and crates work through the UI", function(
 	click(find(find(list, "Row1"), "Buy"))
 	eq(data.food.fruit, fruit + 1, "food Buy button did nothing")
 	-- furniture
-	click(find(root, "Tab_Decor"))
+	click(find(root, "Tab_Home"))
 	local owned = 0
 	for _, n in pairs(data.furniture.owned) do
 		owned += n
@@ -2028,7 +2042,7 @@ end)
 
 test("Brady window + feed window drive the care actions", function()
 	calm()
-	click(PlayerGui.MainUI.Menu.Brady)
+	openMenu("Brady")
 	local root = windowOf("BradyUI", "Brady")
 	check(find(root, "BradyPreview"):FindFirstChild("Brady"), "no preview")
 	check(string.find(find(root, "Stage").Text, "Age " .. data.age, 1, true))
@@ -2042,9 +2056,9 @@ test("Brady window + feed window drive the care actions", function()
 	click(find(find(feed, "Food_cereal"), "Button"))
 	eq(data.stats.feeds, feeds + 1, "FEED button did nothing")
 	settle()
-	click(PlayerGui.MainUI.Menu.Brady)
+	openMenu("Brady")
 	local cleans = data.stats.cleans
-	click(find(root, "Action3")) -- brush hair
+	click(find(root, "Action2")) -- clean
 	check(data.stats.cleans > cleans, "Brush Hair button did nothing")
 	H.advance(10) -- he may walk all the way to the sink first
 	setMeters(60, 60, 20, 50)
@@ -2068,7 +2082,7 @@ test("mini-games: a full round of each UI game through the real UI", function()
 		data.age = AgeSystem.ageFromXP(data.ageXP)
 		S.Data.sync(player, "meters", "age", "ageXP")
 		local games = data.stats.minigames
-		click(PlayerGui.MainUI.Menu.Brady)
+		openMenu("Brady")
 		click(find(windowOf("BradyUI", "Brady"), "Action6")) -- Play
 		local picker = windowOf("MinigameUI", "Minigame")
 		check(picker.Visible, "game picker did not open")
@@ -2113,7 +2127,7 @@ test("room: placement mode places furniture where the ghost is", function()
 	end
 	S.Data.sync(player, "furniture")
 	H.advance(0.5)
-	click(PlayerGui.MainUI.Menu.Room)
+	openMenu("Room")
 	local root = windowOf("RoomUI", "Room")
 	click(find(find(root, "Furniture_lamp"), "Place"))
 	local bar = PlayerGui.RoomUI.PlacementBar
@@ -2137,7 +2151,7 @@ test("room: placement mode places furniture where the ghost is", function()
 	eq(placement.id, "lamp")
 	eq(placement.r, 1, "R should have rotated it")
 	-- remove mode: clicking the same spot picks it back up
-	click(PlayerGui.MainUI.Menu.Room)
+	openMenu("Room")
 	click(find(root, "RemoveMode"))
 	check(bar.Visible)
 	H.input.InputBegan:Fire({ UserInputType = UIT.MouseButton1, Position = Vector3.new(600, 300, 0) }, false)
@@ -2146,7 +2160,7 @@ test("room: placement mode places furniture where the ghost is", function()
 	click(find(bar, "Button"))
 	check(not bar.Visible)
 	-- travel tab
-	click(PlayerGui.MainUI.Menu.Room)
+	openMenu("Room")
 	click(find(root, "Tab_Travel"))
 	check(find(root, "Player_" .. other.UserId), "other players should be listed")
 	click(find(root, "Go_Plaza"))
@@ -2156,7 +2170,7 @@ end)
 
 test("collection book: progress, claims and the daily page", function()
 	calm()
-	click(PlayerGui.MainUI.Menu.Collection)
+	openMenu("Collection")
 	local root = windowOf("CollectionUI", "Collection")
 	local list = find(root, "List")
 	check(string.find(find(root, "Summary").Text, "TOTAL COMPLETION", 1, true))
@@ -2181,7 +2195,7 @@ test("collection book: progress, claims and the daily page", function()
 	check(find(list, "Day1") and find(list, "Day7"), "daily tiles missing")
 	advanceCoarse(86400 + 40)
 	calm()
-	click(PlayerGui.MainUI.Menu.Collection)
+	openMenu("Collection")
 	click(find(root, "Tab_Daily"))
 	local streak = data.daily.streak
 	click(find(list, "ClaimDaily"))
@@ -2239,7 +2253,7 @@ test("inspect another player's Brady + settings window", function()
 	eq(S.Data.get(other).stats.hypes, hypes + 1, "Hype button did nothing")
 	State.open("Inspect", 424242)
 	H.advance(1.5)
-	click(PlayerGui.MainUI.Menu.Settings)
+	openMenu("Settings")
 	local settings = windowOf("SettingsUI", "Settings")
 	local before = data.settings.chatter
 	click(find(find(settings, "Setting_chatter"), "Toggle"))
@@ -2382,6 +2396,7 @@ test("animator: every idle, walk, state and pose produces valid joints", functio
 	settle()
 	rec = S.Brady.get(player)
 	S.Brady.setState(rec, "Idle")
+	rec.nextWander = math.huge -- no random idle wandering during this check
 	local start = rec.model.PrimaryPart.CFrame.Position
 	S.Brady.walkTo(rec, S.Brady.position(rec) + Vector3.new(6, 0, 0), 6)
 	H.advance(0.5)
@@ -2389,6 +2404,7 @@ test("animator: every idle, walk, state and pose produces valid joints", functio
 	check((mid - start).Magnitude > 1 and (mid - start).Magnitude < 5.5, "client did not slide Brady along the walk line: " .. (mid - start).Magnitude)
 	H.advance(2)
 	check((rec.model.PrimaryPart.CFrame.Position - start).Magnitude > 5.5, "walk did not finish at the target")
+	rec.nextWander = 0
 	-- a Brady far from the camera is skipped (performance)
 	H.camera.CFrame = CFrame.new(S.Brady.position(rec) + Vector3.new(0, 8, 400))
 	H.advance(0.5)
@@ -2512,7 +2528,7 @@ test("fuzz: mashing every visible button never errors", function()
 		-- open a different window each pass, then click everything on screen
 		local menu = { "Brady", "Wardrobe", "Inventory", "Shop", "Room", "Collection", "Fashion", "Settings" }
 		for _, name in ipairs(menu) do
-			H.click(PlayerGui.MainUI.Menu[name])
+			openMenu(name)
 			H.advance(0.4)
 			local buttons = {}
 			for _, descendant in ipairs(PlayerGui:GetDescendants()) do
@@ -2539,7 +2555,7 @@ test("fuzz: mashing every visible button never errors", function()
 			H.advance(pass == 3 and 30 or 1)
 		end
 	end
-	check(clicks > 300, "fuzz barely clicked anything: " .. clicks)
+	check(clicks > 150, "fuzz barely clicked anything: " .. clicks)
 	print("        (" .. clicks .. " random button presses)")
 	H.advance(60)
 	State.close()

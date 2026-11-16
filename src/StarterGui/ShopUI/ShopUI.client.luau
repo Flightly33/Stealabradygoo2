@@ -32,12 +32,9 @@ local window = UI.window(gui, { name = "Shop", title = "🛒 Shop", width = 850,
 local body = window.body
 
 local TABS = {
-	{ id = "Clothing", text = "👕 Clothing" },
-	{ id = "Hair", text = "💇 Hair" },
+	{ id = "Clothing", text = "👕 Clothes" },
 	{ id = "Food", text = "🍔 Food" },
-	{ id = "Furniture", text = "🛋️ Furniture" },
-	{ id = "Decor", text = "🪴 Decor" },
-	{ id = "Toys", text = "🧸 Toys" },
+	{ id = "Home", text = "🛋️ Home" },
 	{ id = "Crates", text = "🎁 Crates" },
 	{ id = "Passes", text = "💎 Passes" },
 }
@@ -134,7 +131,7 @@ local function showClothing(hair)
 	local data = State.data
 	local items = {}
 	for _, item in ipairs(ClothingSystem.List) do
-		if item.price and (item.slot == "Hair") == hair then
+		if item.price and (hair == nil or (item.slot == "Hair") == hair) then
 			table.insert(items, item)
 		end
 	end
@@ -188,13 +185,16 @@ local function showFood()
 end
 
 local FURNITURE_ICONS = { Furniture = "🛋️", Decor = "🪴", Toys = "🧸" }
+local function iconFor(def)
+	return FURNITURE_ICONS[def.category]
+end
 
 local function showFurniture(category)
 	setLayout("list")
 	local data = State.data
 	local index = 0
 	for _, def in ipairs(FurnitureSystem.List) do
-		if def.category == category and def.price then
+		if (category == nil or def.category == category) and def.price then
 			index += 1
 			local locked = data.age < (def.minAge or 1)
 			local needsPass = def.vip and not State.hasPass("VIPDecor")
@@ -205,7 +205,7 @@ local function showFurniture(category)
 				label = "🔒 Age " .. def.minAge
 			end
 			local owned = data.furniture.owned[def.id] or 0
-			shopRow(index, def.vip and "💎" or FURNITURE_ICONS[category], def.name .. "   (owned " .. owned .. ")", string.format("%dx%d studs  •  %s", def.w, def.d, def.desc),
+			shopRow(index, def.vip and "💎" or iconFor(def), def.name .. "   (owned " .. owned .. ")", string.format("%dx%d studs  •  %s", def.w, def.d, def.desc),
 				label, not locked and not needsPass, function()
 					request("furniture", def.id)
 				end)
@@ -325,9 +325,7 @@ function refresh()
 	detail.Visible = false
 	list.Size = UDim2.new(1, 0, 1, -48)
 	if current == "Clothing" then
-		showClothing(false)
-	elseif current == "Hair" then
-		showClothing(true)
+		showClothing(nil) -- clothes and hairstyles together
 	elseif current == "Food" then
 		showFood()
 	elseif current == "Crates" then
@@ -335,11 +333,13 @@ function refresh()
 	elseif current == "Passes" then
 		showPasses()
 	else
-		showFurniture(current)
+		showFurniture(nil) -- furniture, decor and toys together
 	end
 end
 
 window.onShow(function(arg)
+	local ALIAS = { Hair = "Clothing", Furniture = "Home", Decor = "Home", Toys = "Home" }
+	arg = ALIAS[arg] or arg
 	if type(arg) == "string" and tabs.buttons[arg] then
 		current = arg
 		selected = nil
@@ -354,7 +354,7 @@ State.on("age", refresh)
 State.onSession("passes", refresh)
 -- coins change constantly: only the buy buttons need to react
 State.on("coins", function()
-	if window.visible and (current == "Clothing" or current == "Hair") then
+	if window.visible and current == "Clothing" then
 		showDetail()
 	elseif window.visible and current == "Crates" and not busy then
 		refresh()
