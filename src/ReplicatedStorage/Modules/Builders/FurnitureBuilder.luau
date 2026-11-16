@@ -153,13 +153,13 @@ function RECIPES.throne(p, def)
 end
 
 local function rug(p, def, tiles)
-	p("Rug", v3(def.w - 0.2, 0.12, def.d - 0.2), v3(0, 0.06, 0), def.color, { material = "Fabric", collide = false })
+	p("Rug", v3(def.w - 0.2, 0.12, def.d - 0.2), v3(0, 0.06, 0), def.color, { material = "Carpet", collide = false })
 	if tiles then
 		local nx, nz = def.w / 2, def.d / 2
 		for ix = 0, nx - 1 do
 			for iz = 0, nz - 1 do
 				if (ix + iz) % 2 == 0 then
-					p("Tile", v3(1.8, 0.14, 1.8), v3(-def.w / 2 + 1 + ix * 2, 0.07, -def.d / 2 + 1 + iz * 2), WHITE, { material = "Fabric", collide = false })
+					p("Tile", v3(1.8, 0.14, 1.8), v3(-def.w / 2 + 1 + ix * 2, 0.07, -def.d / 2 + 1 + iz * 2), WHITE, { material = "Carpet", collide = false })
 				end
 			end
 		end
@@ -167,7 +167,7 @@ local function rug(p, def, tiles)
 end
 
 function RECIPES.rug_goo(p, def)
-	p("Splat", v3(0.12, 3.6, 3.6), v3(0, 0.06, 0), def.color, { shape = "Cylinder", rot = UP, material = "Fabric", collide = false })
+	p("Splat", v3(0.12, 3.6, 3.6), v3(0, 0.06, 0), def.color, { shape = "Cylinder", rot = UP, material = "Carpet", collide = false })
 	p("Blob", v3(0.13, 1.4, 1.4), v3(1.2, 0.065, 1.1), def.color, { shape = "Cylinder", rot = UP, material = "Fabric", collide = false })
 	p("Blob", v3(0.13, 1.1, 1.1), v3(-1.3, 0.065, -1), def.color, { shape = "Cylinder", rot = UP, material = "Fabric", collide = false })
 	p("Shine", v3(0.14, 0.8, 0.8), v3(-0.5, 0.07, 0.5), PartUtil.shade(def.color, 1.25), { shape = "Cylinder", rot = UP, collide = false })

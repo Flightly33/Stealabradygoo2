@@ -75,13 +75,14 @@ Play. What I did instead:
   [Lune](https://lune-org.github.io/docs). It uses the *real* Roblox class and
   property database, so a wrong property name or type fails just like in
   Studio, and runs the game's actual scripts on a virtual clock.
-* **66 automated scenarios pass**: every shared module, every clothing /
+* **69 automated scenarios pass**: every shared module, every clothing /
   furniture / gift / house recipe, a full server boot, joining, all care
   actions, all six mini-games, shop, crates (hundreds of rolls), ageing 1 → 25,
   rebirth, every random event, a complete fashion show with voting, daily
   rewards across a simulated week, hidden items, multiplayer visiting, saving /
   rejoining, session locks, DataStore outages, corrupt saves, exploit-style bad
-  remote arguments, a two hour soak, and all 17 client scripts driven through
+  remote arguments, a two hour soak, the day/night cycle, roof fading, and all
+  18 client scripts driven through
   their real buttons including ~400 random button presses.
 
 That gives good confidence in the **logic**. It gives **no** confidence in
@@ -100,6 +101,39 @@ anything that needs a real client. Expect to tune these in Studio:
 
 If something errors on first Play, the Output window will name the script and
 line. The most likely first-run issues are visual, not logical.
+
+---
+
+## Graphics
+
+Roblox does not allow custom shaders. These are the graphics levers it does
+offer, and the game uses all of them:
+
+| Feature | Where |
+| --- | --- |
+| **Future lighting** (real per-light shadows, specular highlights) and the **2022 PBR materials** | `default.project.json` (both can only be set in the place file) |
+| Sky with sun, moon and stars; dynamic **clouds**; **atmosphere** haze and glare | `World/Environment` |
+| Post-processing: bloom, sun rays, colour grade, gentle far depth-of-field | `World/Environment` |
+| **Terrain**: animated grass blades, hills around the world, **Goo Beach** with an ocean, a real water pond, rock around the secret cave | `World/Environment` |
+| **Day / night cycle** (15 min): golden hour at sunrise and sunset; at night street lamps, porch lights and string lights switch on, windows glow warm, fireflies come out | `Modules/TimeOfDay`, `LightingClient` |
+| Materials everywhere: cobblestone plaza and paths, asphalt street with sidewalks, plaster, brick, roof shingles and clay tiles, carpet, ceramic tiles, leather, fabric clothing, rubber soles | builders |
+| Detailed houses: pitched roofs (shingle or clay tile) or flat modern roofs, framed windows with sills and flower boxes, an open front door, porch light, plaster interiors with baseboards and crown moulding, chimneys, a paved walkway, hedged yards | `World/HouseBuilder` |
+| Detailed map: round cartoon trees, palms, bushes, flower beds, slatted benches, street lamps, store front with display windows, mannequins and a striped awning, string lights over the food court, glowing cave crystals | `World/MapBuilder` |
+| Brady: cartoon eyes (whites, irises, pupils, highlights), fabric / leather / rubber materials | `Builders/BradyBuilder` |
+| UI: drop shadows behind windows, top-lit gradients and gloss on buttons and panels, rarity-tinted item cards | `Client/UI` |
+
+**Settings → Low graphics** turns off depth of field, sun rays and clouds and
+animates fewer Bradys. **Settings → Day & night** off keeps it a sunny
+afternoon.
+
+What I could **not** check, because I can't run Roblox: how all of this looks
+in the real renderer, how much the grass decoration and Future lighting cost
+on low-end phones (Roblox scales both down automatically on weak devices), and
+whether the colour grade and night palette are to your taste. All of those
+are a few numbers in `Modules/TimeOfDay.luau` and `World/Environment.luau`.
+The previews in `docs/` show shapes, colours and layout only.
+
+![House styles](docs/preview-house-styles.png)
 
 ---
 

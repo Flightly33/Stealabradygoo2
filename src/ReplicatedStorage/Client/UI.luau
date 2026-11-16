@@ -119,6 +119,18 @@ function UI.grid(parent, cellWidth, cellHeight, pad)
 	})
 end
 
+-- A vertical light-to-dark gradient. UIGradient multiplies the object's own
+-- colour, so the top stays at full colour and the bottom gets `dark` times it.
+function UI.gradient(guiObject, dark, rotation)
+	local value = dark or 0.78
+	return UI.new("UIGradient", {
+		Name = "Shade",
+		Rotation = rotation or 90,
+		Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.new(value, value, value)),
+		Parent = guiObject,
+	})
+end
+
 function UI.frame(parent, props)
 	props = props or {}
 	local frame = UI.new("Frame", {
@@ -225,6 +237,18 @@ function UI.button(parent, text, props, onClick)
 	})
 	UI.corner(button, props.Corner or 12)
 	UI.stroke(button, 3, UI.Colors.dark)
+	UI.gradient(button, 0.74)
+	local gloss = UI.new("Frame", {
+		Name = "Gloss",
+		Size = UDim2.new(1, -10, 0.32, 0),
+		Position = UDim2.fromOffset(5, 3),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.78,
+		BorderSizePixel = 0,
+		ZIndex = (props.ZIndex or 1),
+		Parent = button,
+	})
+	UI.corner(gloss, props.Corner or 12)
 	local press = UI.new("UIScale", { Name = "Press", Parent = button })
 	button.MouseButton1Down:Connect(function()
 		UI.tween(press, 0.06, { Scale = 0.93 })
@@ -292,6 +316,7 @@ function UI.bar(parent, props)
 		LayoutOrder = props.LayoutOrder,
 	})
 	local fill = UI.frame(frame, { Name = "Fill", Size = UDim2.fromScale(0, 1), Color = props.Color or UI.Colors.goo, Corner = props.Corner or 8 })
+	UI.gradient(fill, 0.7)
 	local label = UI.label(frame, "", { Name = "Text", TextSize = props.TextSize or 13, Font = UI.BodyFont, ZIndex = 2 })
 	local bar = { frame = frame, fill = fill, label = label }
 	function bar.set(ratio, text, color)
@@ -345,21 +370,28 @@ function UI.window(screenGui, opts)
 	local window = { visible = false }
 	local showHandlers, hideHandlers = {}, {}
 
-	local root = UI.frame(screenGui, {
+	-- root is an invisible container so the window can have a drop shadow
+	-- behind it (children always draw above their parent in Roblox).
+	local root = UI.box(screenGui, {
 		Name = opts.name .. "Window",
 		Size = UDim2.fromOffset(opts.width or 760, opts.height or 460),
 		Position = UDim2.fromScale(0.5, 0.52),
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Color = UI.Colors.bg,
-		Corner = 20,
 		Visible = false,
 	})
-	UI.stroke(root, 4, UI.Colors.goo)
 	UI.autoScale(root, "window")
+	local shadow = UI.frame(root, { Name = "Shadow", Size = UDim2.new(1, 8, 1, 10), Position = UDim2.fromOffset(2, 8), Color = Color3.new(0, 0, 0), Transparency = 0.55, Corner = 24 })
+	shadow.ZIndex = 0
+	local panel = UI.frame(root, { Name = "Panel", Color = UI.Colors.bg, Corner = 20 })
+	UI.stroke(panel, 4, UI.Colors.goo)
+	UI.gradient(panel, 0.72)
 	-- swallow clicks so the world behind the window is not tapped through
-	root.Active = true
+	panel.Active = true
 
-	local header = UI.frame(root, { Name = "Header", Size = UDim2.new(1, 0, 0, 54), Color = UI.Colors.panel, Corner = 20 })
+	local header = UI.frame(panel, { Name = "Header", Size = UDim2.new(1, 0, 0, 54), Color = UI.Colors.panel, Corner = 20 })
+	UI.gradient(header, 0.8)
+	local accent = UI.frame(header, { Name = "Accent", Size = UDim2.new(1, -40, 0, 3), Position = UDim2.new(0, 20, 1, -3), Color = UI.Colors.goo, Corner = 2 })
+	accent.BackgroundTransparency = 0.3
 	local title = UI.label(header, opts.title or opts.name, {
 		Name = "Title",
 		Size = UDim2.new(1, -90, 1, 0),
@@ -380,7 +412,7 @@ function UI.window(screenGui, opts)
 		State.close()
 	end)
 
-	local body = UI.box(root, { Name = "Body", Size = UDim2.new(1, -24, 1, -70), Position = UDim2.fromOffset(12, 60) })
+	local body = UI.box(panel, { Name = "Body", Size = UDim2.new(1, -24, 1, -70), Position = UDim2.fromOffset(12, 60) })
 
 	window.root, window.body, window.title = root, body, title
 
@@ -478,6 +510,14 @@ function UI.itemCard(parent, item, opts, onClick)
 	})
 	UI.corner(card, 12)
 	local stroke = UI.stroke(card, 3, rarityColor)
+	-- tinted by rarity: neutral at the top, rarity colour glowing at the bottom
+	card.BackgroundColor3 = Color3.new(1, 1, 1)
+	UI.new("UIGradient", {
+		Name = "RarityGlow",
+		Rotation = 90,
+		Color = ColorSequence.new(UI.Colors.panel2, UI.Colors.panel:Lerp(rarityColor, 0.38)),
+		Parent = card,
+	})
 	-- colour swatch + slot icon stand in for a thumbnail
 	local swatch = UI.frame(card, { Name = "Swatch", Size = UDim2.new(1, -16, 0, 56), Position = UDim2.fromOffset(8, 8), Color = ClothingSystem.swatch(item), Corner = 8 })
 	UI.label(swatch, ClothingSystem.SlotInfo[item.slot].icon, { TextSize = 32 })
@@ -524,6 +564,7 @@ function UI.row(parent, props)
 		Corner = 12,
 		LayoutOrder = props.LayoutOrder,
 	})
+	UI.gradient(row, 0.82)
 	if props.StrokeColor then
 		UI.stroke(row, 2, props.StrokeColor)
 	end

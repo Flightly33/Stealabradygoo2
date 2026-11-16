@@ -30,6 +30,7 @@ local holder = UI.box(gui, { Name = "AgeBar", Size = UDim2.fromOffset(560, 100),
 UI.autoScale(holder, "hud")
 
 local row = UI.frame(holder, { Name = "Row", Size = UDim2.fromOffset(460, 34), Position = UDim2.fromOffset(50, 52), Color = C.bg, Corner = 17, Stroke = 3, StrokeColor = C.dark })
+UI.gradient(row, 0.7)
 local leftLabel = UI.label(row, "AGE 1", { Name = "Current", Size = UDim2.fromOffset(84, 34), TextSize = 18, Color = C.goo, Outline = 2 })
 local rightLabel = UI.label(row, "AGE 2", { Name = "Next", Size = UDim2.fromOffset(84, 34), Position = UDim2.new(1, -84, 0, 0), TextSize = 18, Color = C.gold, Outline = 2 })
 local bar = UI.bar(row, { Name = "XP", Size = UDim2.new(1, -176, 0, 20), Position = UDim2.fromOffset(88, 7), Color = C.goo, Corner = 10, TextSize = 12 })

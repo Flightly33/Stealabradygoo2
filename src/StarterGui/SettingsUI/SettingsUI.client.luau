@@ -27,6 +27,7 @@ local TOGGLES = {
 	{ key = "sfx", name = "🔊 Sound effects", desc = "clicks, coins and Brady noises" },
 	{ key = "music", name = "🎵 Music", desc = Sounds.Music == "" and "no music track is set up for this game yet" or "background music" },
 	{ key = "chatter", name = "💬 Brady chatter", desc = "random speech bubbles when he is idle" },
+	{ key = "dayNight", name = "🌙 Day & night", desc = "time passes and lamps light up at night. off = always sunny" },
 	{ key = "lowGfx", name = "⚡ Low graphics", desc = "fewer particles and animations for slower devices" },
 }
 

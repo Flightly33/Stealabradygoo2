@@ -621,7 +621,41 @@ local function setupClasses()
 		return nil
 	end)
 	roblox.implementMethod("SoundService", "PlayLocalSound", function() end)
+
+	-- Terrain: calls are validated and recorded (tools/ renders them).
+	local function material(value)
+		assert(typeof(value) == "EnumItem" and value.EnumType == roblox.Enum.Material, "terrain material must be an Enum.Material")
+		return value.Name
+	end
+	roblox.implementMethod("Terrain", "FillBlock", function(_self, cframe, size, mat)
+		assert(typeof(cframe) == "CFrame" and typeof(size) == "Vector3", "FillBlock(CFrame, Vector3, Material)")
+		table.insert(H.terrainOps, { op = "block", cf = { cframe:GetComponents() }, size = { size.X, size.Y, size.Z }, material = material(mat) })
+	end)
+	roblox.implementMethod("Terrain", "FillBall", function(_self, center, radius, mat)
+		assert(typeof(center) == "Vector3" and type(radius) == "number", "FillBall(Vector3, number, Material)")
+		table.insert(H.terrainOps, { op = "ball", center = { center.X, center.Y, center.Z }, radius = radius, material = material(mat) })
+	end)
+	roblox.implementMethod("Terrain", "FillCylinder", function(_self, cframe, height, radius, mat)
+		assert(typeof(cframe) == "CFrame" and type(height) == "number" and type(radius) == "number", "FillCylinder(CFrame, number, number, Material)")
+		table.insert(H.terrainOps, { op = "cylinder", cf = { cframe:GetComponents() }, height = height, radius = radius, material = material(mat) })
+	end)
+	roblox.implementMethod("Terrain", "FillWedge", function(_self, cframe, size, mat)
+		table.insert(H.terrainOps, { op = "wedge", cf = { cframe:GetComponents() }, size = { size.X, size.Y, size.Z }, material = material(mat) })
+	end)
+	roblox.implementMethod("Terrain", "SetMaterialColor", function(_self, mat, color)
+		assert(typeof(color) == "Color3", "SetMaterialColor(Material, Color3)")
+		H.terrainColors[material(mat)] = { color.R, color.G, color.B }
+	end)
+	roblox.implementMethod("Terrain", "GetMaterialColor", function(_self, mat)
+		local c = H.terrainColors[material(mat)]
+		return c and roblox.Color3.new(c[1], c[2], c[3]) or roblox.Color3.new(0.5, 0.5, 0.5)
+	end)
+	roblox.implementMethod("Terrain", "Clear", function()
+		H.terrainOps = {}
+	end)
 end
+H.terrainOps = {}
+H.terrainColors = {}
 
 ----------------------------------------------------------------------
 -- Table-based services
@@ -1182,6 +1216,12 @@ function H.boot(placeBytes, options)
 	setupClasses()
 	H.dataStoreService = makeDataStoreService()
 	H.collectionService = makeCollectionService()
+
+	if options.terrain ~= false and not Workspace:FindFirstChildOfClass("Terrain") then
+		local terrain = roblox.Instance.new("Terrain")
+		terrain.Name = "Terrain"
+		terrain.Parent = Workspace
+	end
 
 	local camera = InstanceLib.new("Camera")
 	camera.Name = "Camera"

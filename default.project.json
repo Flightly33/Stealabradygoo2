@@ -46,13 +46,24 @@
     "Lighting": {
       "$className": "Lighting",
       "$properties": {
+        "Technology": "Future",
         "ClockTime": 14,
-        "Brightness": 2.5,
-        "GlobalShadows": true
+        "Brightness": 2.6,
+        "GlobalShadows": true,
+        "ShadowSoftness": 0.2,
+        "EnvironmentDiffuseScale": 1,
+        "EnvironmentSpecularScale": 1,
+        "GeographicLatitude": 35
       }
     },
     "SoundService": {
       "$className": "SoundService"
+    },
+    "MaterialService": {
+      "$className": "MaterialService",
+      "$properties": {
+        "Use2022Materials": true
+      }
     }
   }
 }

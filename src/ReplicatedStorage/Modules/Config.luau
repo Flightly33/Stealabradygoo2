@@ -72,6 +72,9 @@ Config.WanderInterval = { 4, 9 }
 Config.BradyWalkSpeed = 7
 Config.BradyFollowSpeed = 19
 
+-- Day / night ---------------------------------------------------------
+Config.DayLength = 900 -- seconds for one full day + night (players can turn it off)
+
 -- Testing -------------------------------------------------------------
 -- When true, everyone is treated as owning every gamepass inside Studio.
 Config.StudioOwnsAllPasses = false

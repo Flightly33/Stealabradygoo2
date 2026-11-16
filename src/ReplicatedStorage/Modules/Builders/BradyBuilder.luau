@@ -215,13 +215,25 @@ local function buildFace(head, faceId)
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 	local eyeColor = def.golden and rgb(120, 80, 10) or rgb(28, 28, 32)
-	for _, side in ipairs({ { "EyeL", 0.3 }, { "EyeR", 0.7 } }) do
-		local eye = frame(gui, side[1], UDim2.fromScale(def.eye[1], def.eye[2]), UDim2.fromScale(side[2], def.eyeY), eyeColor, 1)
-		if def.shine then
-			frame(eye, "Shine", UDim2.fromScale(0.36, 0.36), UDim2.fromScale(0.68, 0.3), Color3.new(1, 1, 1), 1)
-		end
-		if def.golden then
-			frame(eye, "Shine", UDim2.fromScale(0.5, 0.5), UDim2.fromScale(0.5, 0.5), rgb(255, 215, 80), 1)
+	local irisColor = def.golden and rgb(255, 196, 60) or rgb(96, 64, 40)
+	for index, side in ipairs({ { "EyeL", 0.3 }, { "EyeR", 0.7 } }) do
+		local w, h = def.eye[1], def.eye[2]
+		if h >= 0.1 then
+			-- full cartoon eye: white, iris, pupil, two highlights
+			local eye = frame(gui, side[1], UDim2.fromScale(w * 1.3, h * 1.18), UDim2.fromScale(side[2], def.eyeY), Color3.new(1, 1, 1), 1)
+			local outline = Instance.new("UIStroke")
+			outline.Thickness = 2
+			outline.Color = rgb(40, 30, 30)
+			outline.Parent = eye
+			local lookX = index == 1 and 0.56 or 0.44 -- both eyes look slightly inward
+			local iris = frame(eye, "Iris", UDim2.fromScale(0.66, 0.78), UDim2.fromScale(lookX, 0.56), irisColor, 1)
+			frame(iris, "Pupil", UDim2.fromScale(0.58, 0.58), UDim2.fromScale(0.5, 0.52), eyeColor, 1)
+			frame(iris, "Shine", UDim2.fromScale(def.shine and 0.42 or 0.32, def.shine and 0.42 or 0.32), UDim2.fromScale(0.68, 0.3), Color3.new(1, 1, 1), 1)
+			frame(iris, "Shine2", UDim2.fromScale(0.16, 0.16), UDim2.fromScale(0.3, 0.72), Color3.new(1, 1, 1), 1)
+		else
+			-- narrow "too cool to open my eyes" eyes
+			local eye = frame(gui, side[1], UDim2.fromScale(w, h), UDim2.fromScale(side[2], def.eyeY), eyeColor, 1)
+			frame(eye, "Shine", UDim2.fromScale(0.18, 0.5), UDim2.fromScale(0.72, 0.4), Color3.new(1, 1, 1), 1)
 		end
 	end
 	if def.brow then
@@ -494,11 +506,9 @@ end
 local function buildShirt(ctx, vis)
 	local d, parts = ctx.d, ctx.parts
 	local torso = parts.Torso
-	local material = vis.material
+	local material = vis.material or "Fabric"
 	torso.Color = vis.color
-	if material then
-		torso.Material = Enum.Material[material]
-	end
+	torso.Material = Enum.Material[material]
 	local front = torso -- the part that carries the chest graphic
 	if vis.oversized then
 		front = add(ctx, torso, "Shirt_Shell", v3(d.torsoW + 0.24 * d.S, d.torsoH + 0.3 * d.S, d.torsoD + 0.24 * d.S), v3(0, -0.13 * d.S, 0), vis.color, { material = material })
@@ -512,6 +522,7 @@ local function buildShirt(ctx, vis)
 		local sleeveColor = vis.sleeveColor or vis.color
 		if vis.sleeves == "long" or vis.under then
 			arm.Color = vis.under or sleeveColor
+			arm.Material = Enum.Material[material]
 			add(ctx, arm, "Hand", v3(d.armW * 1.02, d.armH * 0.16, d.armW * 1.02), v3(0, -d.armH * 0.42, 0), SKIN)
 		end
 		if vis.sleeves == "short" then
@@ -555,7 +566,7 @@ local function buildPants(ctx, vis)
 	local d, parts = ctx.d, ctx.parts
 	local width = vis.width or 1
 	local length = vis.length or 1
-	local material = vis.material
+	local material = vis.material or "Fabric"
 	local first
 	for index, side in ipairs({ "LeftLeg", "RightLeg" }) do
 		local leg = parts[side]
@@ -568,9 +579,7 @@ local function buildPants(ctx, vis)
 			add(ctx, leg, "Pants_Short", v3(w * 1.06, d.legH * length, w * 1.06), v3(outward, d.legH * (1 - length) / 2, 0), vis.color, { material = material })
 		else
 			leg.Color = vis.color
-			if material then
-				leg.Material = Enum.Material[material]
-			end
+			leg.Material = Enum.Material[material]
 			if width > 1.04 then
 				add(ctx, leg, "Pants_Shell", v3(w, d.legH * 0.99, w), v3(outward, 0, 0), vis.color, { material = material })
 			end
@@ -646,7 +655,7 @@ local function buildShoes(ctx, vis)
 			local len = d.legW * 1.6 * chunk
 			local forward = -(len - d.legW) / 2
 			local soleH = 0.14 * d.S + lift
-			local sole = add(ctx, leg, "Shoe_Sole", v3(w * 1.04, soleH, len * 1.04), v3(0, bottom - lift + soleH / 2, forward), vis.sole, { material = vis.glow and "Neon" or nil })
+			local sole = add(ctx, leg, "Shoe_Sole", v3(w * 1.04, soleH, len * 1.04), v3(0, bottom - lift + soleH / 2, forward), vis.sole, { material = vis.glow and "Neon" or "Rubber" })
 			if vis.glow then
 				sole.Color = vis.glow
 			end
@@ -679,7 +688,7 @@ local function buildJacket(ctx, vis)
 	local S = d.S
 	local b = (vis.bulk or 0.14) * S
 	local len = (vis.length or 0) * S
-	local material = vis.material
+	local material = vis.material or "Fabric"
 	local color = vis.color
 	local sleeveColor = vis.sleeve or color
 	local opts = { material = material }

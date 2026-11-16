@@ -15,7 +15,6 @@
 ]]
 
 local CollectionService = game:GetService("CollectionService")
-local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -24,8 +23,10 @@ local Config = require(Modules.Config)
 local MinigameSystem = require(Modules.MinigameSystem)
 local ShopSystem = require(Modules.ShopSystem)
 local PartUtil = require(Modules.Builders.PartUtil)
+local Environment = require(script.Parent.Environment)
 
 local MapBuilder = {}
+local M = Enum.Material
 
 local rgb = Color3.fromRGB
 local v3 = Vector3.new
@@ -91,58 +92,153 @@ function MapBuilder.build()
 		return board
 	end
 
+	-- Terrain painting list (see Environment.terrain): keeps grass blades
+	-- from poking through floors and paths.
+	local paintList = {}
+	local function pave(cframe, size, material, radius)
+		table.insert(paintList, { cframe, size, material, radius })
+	end
+
+	-- Groups roof parts into a model with an invisible "RoofZone" box. The
+	-- client fades the whole roof out while you stand inside the zone.
+	local function roofGroup(parent, roofParts, zoneCFrame, zoneSize)
+		local model = Instance.new("Model")
+		model.Name = "Roof"
+		for _, part in ipairs(roofParts) do
+			part.Parent = model
+		end
+		local zone = PartUtil.block(model, { name = "RoofZone", size = zoneSize, cframe = zoneCFrame, transparency = 1, collide = false, shadow = false })
+		CollectionService:AddTag(zone, "RoofZone")
+		model.Parent = parent
+		return model
+	end
+
+	local LEAF = { rgb(76, 170, 74), rgb(96, 188, 84), rgb(62, 150, 70), rgb(112, 198, 92), rgb(84, 176, 96) }
+	local leafSeed = 0
+	local function leafColor(i)
+		return LEAF[(leafSeed + i) % #LEAF + 1]
+	end
+
+	-- A round cartoon tree: flared trunk, a branch, five canopy clusters.
 	local function tree(x, z, scale)
 		scale = scale or 1
-		B("Trunk", v3(7 * scale, 1.6 * scale, 1.6 * scale), v3(x, 3.5 * scale, z), rgb(110, 78, 50), { shape = "Cylinder", rot = UP, material = "Wood" })
-		B("Leaves", v3(8, 8, 8) * scale, v3(x, 9 * scale, z), rgb(70, 170, 80), { shape = "Ball", material = "Grass", collide = false })
-		B("Leaves", v3(5.5, 5.5, 5.5) * scale, v3(x + 2.4 * scale, 7 * scale, z + 1.5 * scale), rgb(90, 190, 90), { shape = "Ball", material = "Grass", collide = false })
-		B("Leaves", v3(5, 5, 5) * scale, v3(x - 2.2 * scale, 7.4 * scale, z - 1.6 * scale), rgb(60, 150, 70), { shape = "Ball", material = "Grass", collide = false })
+		leafSeed += 1
+		local bark = rgb(112, 80, 54)
+		B("Trunk", v3(8 * scale, 1.7 * scale, 1.7 * scale), v3(x, 4 * scale, z), bark, { shape = "Cylinder", rot = UP, material = "Wood" })
+		B("TrunkBase", v3(0.8 * scale, 3 * scale, 3 * scale), v3(x, 0.4 * scale, z), PartUtil.shade(bark, 0.9), { shape = "Cylinder", rot = UP, material = "Wood", collide = false, shadow = false })
+		B("Branch", v3(0.7, 3.4, 0.7) * scale, CFrame.new(x + 1.2 * scale, 7.4 * scale, z) * CFrame.Angles(0, 0, rad(-35)), bark, { material = "Wood", collide = false, shadow = false })
+		B("Leaves", v3(9, 9, 9) * scale, v3(x, 10.6 * scale, z), leafColor(0), { shape = "Ball", material = "LeafyGrass", collide = false })
+		local clusters = { { 3, 9, 1.6 }, { -2.7, 9.4, -1.8 }, { 1.2, 12.8, -1.4 }, { -1.6, 12, 2.2 } }
+		for i, c in ipairs(clusters) do
+			local size = (5.8 - i * 0.3) * scale
+			B("Leaves", v3(size, size, size), v3(x + c[1] * scale, c[2] * scale, z + c[3] * scale), leafColor(i), { shape = "Ball", material = "LeafyGrass", collide = false, shadow = i <= 2 })
+		end
+	end
+
+	-- A curved palm tree with drooping fronds and coconuts.
+	local function palm(x, z, scale, yaw)
+		scale = scale or 1
+		leafSeed += 1
+		local cf = CFrame.new(x, 0, z) * CFrame.Angles(0, rad(yaw or 0), 0)
+		for i = 1, 4 do
+			local thick = (1.4 - i * 0.1) * scale
+			B("PalmTrunk", v3(3.4 * scale, thick, thick), cf * CFrame.new(0, 1.7 * scale, 0) * UP, i % 2 == 0 and rgb(160, 120, 78) or rgb(146, 108, 70), { shape = "Cylinder", material = "Wood", collide = i <= 2 })
+			cf = cf * CFrame.new(0, 3.3 * scale, 0) * CFrame.Angles(rad(7), 0, 0)
+		end
+		B("PalmTop", v3(1.7, 1.7, 1.7) * scale, cf, rgb(120, 92, 56), { shape = "Ball", material = "Wood", collide = false, shadow = false })
+		for i = 1, 6 do
+			local frond = cf * CFrame.Angles(0, rad(i * 60 + 15), 0) * CFrame.Angles(rad(-22), 0, 0) * CFrame.new(0, 0, -3 * scale)
+			local green = i % 2 == 0 and rgb(70, 160, 70) or rgb(94, 180, 80)
+			B("Frond", v3(1.8 * scale, 0.2 * scale, 6.2 * scale), frond, green, { material = "LeafyGrass", collide = false })
+			B("FrondTip", v3(1.3 * scale, 0.18 * scale, 3.2 * scale), frond * CFrame.new(0, 0, -3 * scale) * CFrame.Angles(rad(-32), 0, 0) * CFrame.new(0, 0, -1.4 * scale), PartUtil.shade(green, 0.9), { material = "LeafyGrass", collide = false, shadow = false })
+		end
+		for i = 1, 3 do
+			B("Coconut", v3(0.9, 0.9, 0.9) * scale, cf * CFrame.Angles(0, rad(i * 120), 0) * CFrame.new(0.75 * scale, -0.8 * scale, 0), rgb(110, 78, 40), { shape = "Ball", collide = false, shadow = false })
+		end
+	end
+
+	local function bush(x, z, scale, flowers)
+		scale = scale or 1
+		leafSeed += 1
+		B("Bush", v3(4, 4, 4) * scale, v3(x, 1.3 * scale, z), leafColor(0), { shape = "Ball", material = "LeafyGrass", collide = false })
+		B("Bush", v3(3, 3, 3) * scale, v3(x + 1.9 * scale, 1 * scale, z + 0.6 * scale), leafColor(1), { shape = "Ball", material = "LeafyGrass", collide = false, shadow = false })
+		B("Bush", v3(2.8, 2.8, 2.8) * scale, v3(x - 1.7 * scale, 0.9 * scale, z - 0.7 * scale), leafColor(2), { shape = "Ball", material = "LeafyGrass", collide = false, shadow = false })
+		if flowers then
+			for i = 1, 3 do
+				local a = rad(i * 110 + leafSeed * 13)
+				B("BushFlower", v3(0.7, 0.7, 0.7) * scale, v3(x + math.cos(a) * 1.6 * scale, (2.4 + i * 0.25) * scale, z + math.sin(a) * 1.6 * scale), flowers, { shape = "Ball", collide = false, shadow = false })
+			end
+		end
+	end
+
+	local FLOWERS = { rgb(255, 110, 180), rgb(255, 220, 80), rgb(170, 110, 255), WHITE, rgb(255, 140, 90) }
+	-- A raised flower bed (soil + a row of flowers) along a CFrame's X axis.
+	local function flowerBed(cframe, length)
+		B("BedBorder", v3(length + 0.6, 0.9, 2.6), cframe * CFrame.new(0, 0.45, 0), rgb(150, 130, 112), { material = "Brick", shadow = false })
+		B("BedSoil", v3(length, 0.3, 2), cframe * CFrame.new(0, 0.95, 0), rgb(96, 70, 50), { material = "Ground", collide = false, shadow = false })
+		local count = math.max(2, math.floor(length / 1.8))
+		for i = 1, count do
+			local x = -length / 2 + (i - 0.5) * length / count
+			B("BedLeaf", v3(1.1, 1.1, 1.1), cframe * CFrame.new(x, 1.35, 0.3 * ((i % 2) * 2 - 1)), leafColor(i), { shape = "Ball", material = "LeafyGrass", collide = false, shadow = false })
+			B("BedFlower", v3(0.7, 0.7, 0.7), cframe * CFrame.new(x, 1.95, 0.3 * ((i % 2) * 2 - 1)), FLOWERS[(i + leafSeed) % #FLOWERS + 1], { shape = "Ball", collide = false, shadow = false })
+		end
 	end
 
 	local function bench(x, z, yaw)
 		local cf = CFrame.new(x, 0, z) * CFrame.Angles(0, rad(yaw), 0)
-		B("BenchSeat", v3(6, 0.4, 1.8), cf * CFrame.new(0, 1.5, 0), WOOD, { material = "Wood" })
-		B("BenchBack", v3(6, 1.6, 0.4), cf * CFrame.new(0, 2.5, 0.8), WOOD, { material = "Wood" })
-		B("BenchLeg", v3(0.4, 1.4, 1.6), cf * CFrame.new(-2.5, 0.7, 0), DARK)
-		B("BenchLeg", v3(0.4, 1.4, 1.6), cf * CFrame.new(2.5, 0.7, 0), DARK)
+		for i = -1, 1 do
+			B("BenchSlat", v3(6, 0.25, 0.5), cf * CFrame.new(0, 1.6, i * 0.6), WOOD, { material = "Wood" })
+		end
+		for i = 0, 1 do
+			B("BenchBackSlat", v3(6, 0.45, 0.2), cf * CFrame.new(0, 2.3 + i * 0.75, 0.95) * CFrame.Angles(rad(-10), 0, 0), WOOD, { material = "Wood", collide = false })
+		end
+		for _, sx in ipairs({ -2.7, 2.7 }) do
+			B("BenchFrame", v3(0.3, 1.5, 1.9), cf * CFrame.new(sx, 0.75, 0), DARK, { material = "Metal" })
+			B("BenchArm", v3(0.3, 0.2, 1.7), cf * CFrame.new(sx, 2.3, 0), DARK, { material = "Metal", collide = false })
+			B("BenchBackPost", v3(0.25, 1.7, 0.25), cf * CFrame.new(sx, 2.6, 1.05) * CFrame.Angles(rad(-10), 0, 0), DARK, { material = "Metal", collide = false })
+		end
 	end
 
-	local function lampPost(x, z)
-		B("LampPost", v3(11, 0.5, 0.5), v3(x, 5.5, z), DARK, { shape = "Cylinder", rot = UP, material = "Metal" })
-		B("LampBulb", v3(1.4, 1.4, 1.4), v3(x, 11.4, z), rgb(255, 244, 200), { shape = "Ball", material = "Neon", collide = false, shadow = false })
+	-- A street lamp whose light only switches on at night (LightingClient).
+	local function streetLamp(x, z, yaw)
+		local cf = CFrame.new(x, 0, z) * CFrame.Angles(0, rad(yaw or 0), 0)
+		B("LampBase", v3(1.2, 1.6, 1.6), cf * CFrame.new(0, 0.6, 0) * UP, DARK, { shape = "Cylinder", material = "Metal" })
+		B("LampPole", v3(11, 0.45, 0.45), cf * CFrame.new(0, 6, 0) * UP, DARK, { shape = "Cylinder", material = "Metal" })
+		B("LampArm", v3(0.3, 0.3, 2.6), cf * CFrame.new(0, 11.4, -1.1), DARK, { material = "Metal", collide = false, shadow = false })
+		B("LampHood", v3(1.8, 0.45, 1.8), cf * CFrame.new(0, 11.25, -2.4), DARK, { material = "Metal", collide = false })
+		local bulb = B("LampBulb", v3(1.2, 0.6, 1.2), cf * CFrame.new(0, 10.8, -2.4), rgb(255, 238, 190), { material = "Neon", collide = false, shadow = false })
+		local light = Instance.new("SpotLight")
+		light.Face = Enum.NormalId.Bottom
+		light.Angle = 110
+		light.Range = 26
+		light.Brightness = 2.6
+		light.Color = rgb(255, 214, 160)
+		light.Shadows = false
+		light.Enabled = false
+		light.Parent = bulb
+		CollectionService:AddTag(light, Environment.NightLightTag)
 	end
 
-	----------------------------------------------------------------------
-	-- GROUND + LIGHTING
-	----------------------------------------------------------------------
-	B("Ground", v3(700, 4, 960), v3(0, -2, 150), rgb(104, 196, 96), { material = "Grass" })
-
-	Lighting.ClockTime = 14
-	Lighting.Brightness = 2.4
-	Lighting.Ambient = rgb(96, 96, 108)
-	Lighting.OutdoorAmbient = rgb(150, 150, 160)
-	Lighting.EnvironmentDiffuseScale = 0.6
-	Lighting.EnvironmentSpecularScale = 0.4
-	local atmosphere = Instance.new("Atmosphere")
-	atmosphere.Density = 0.26
-	atmosphere.Haze = 0.8
-	atmosphere.Color = rgb(210, 230, 255)
-	atmosphere.Parent = Lighting
-	local bloom = Instance.new("BloomEffect")
-	bloom.Intensity = 0.25
-	bloom.Size = 18
-	bloom.Threshold = 1.7
-	bloom.Parent = Lighting
-	local grade = Instance.new("ColorCorrectionEffect")
-	grade.Saturation = 0.14
-	grade.Contrast = 0.05
-	grade.Parent = Lighting
+	local function hedge(cframe, length)
+		B("Hedge", v3(length, 2.6, 1.8), cframe * CFrame.new(0, 1.3, 0), leafColor(length % 5), { material = "LeafyGrass" })
+	end
 
 	----------------------------------------------------------------------
 	-- CENTRAL PLAZA
 	----------------------------------------------------------------------
-	B("Plaza", v3(0.5, 116, 116), v3(0, 0.1, 0), rgb(232, 222, 200), { shape = "Cylinder", rot = UP, material = "Concrete" })
+	B("Plaza", v3(0.5, 116, 116), v3(0, 0.1, 0), rgb(222, 206, 178), { shape = "Cylinder", rot = UP, material = "Cobblestone" })
+	B("PlazaInner", v3(0.52, 40, 40), v3(0, 0.11, 0), rgb(196, 182, 160), { shape = "Cylinder", rot = UP, material = "Pavement", collide = false, shadow = false })
 	B("PlazaRing", v3(0.55, 122, 122), v3(0, 0.05, 0), GOO, { shape = "Cylinder", rot = UP, collide = false })
+	pave(CFrame.new(0, 0, 0), nil, M.Cobblestone, 63)
+	-- palms + flower beds ring the plaza (Malibu vibes)
+	for i = 0, 3 do
+		local angle = rad(i * 90)
+		palm(math.cos(angle) * 54, math.sin(angle) * 54, 1, i * 90 + 20)
+	end
+	for i = 0, 7 do
+		local angle = rad(i * 45 + 22.5)
+		flowerBed(CFrame.new(math.cos(angle) * 22, 0, math.sin(angle) * 22) * CFrame.Angles(0, -angle + rad(90), 0), 8)
+	end
 	-- Goo fountain
 	B("FountainBasin", v3(2.4, 24, 24), v3(0, 1.2, 0), rgb(200, 200, 208), { shape = "Cylinder", rot = UP, material = "Marble" })
 	B("FountainGoo", v3(0.5, 21, 21), v3(0, 2.3, 0), GOO, { shape = "Cylinder", rot = UP, material = "Neon", collide = false, shadow = false })
@@ -158,10 +254,34 @@ function MapBuilder.build()
 	spray.Size = NumberSequence.new(0.7, 0.2)
 	spray.EmissionDirection = Enum.NormalId.Top
 	spray.Parent = fountainTop
+	B("FountainLip", v3(0.6, 25, 25), v3(0, 2.5, 0), rgb(226, 226, 232), { shape = "Cylinder", rot = UP, material = "Marble", collide = false })
+	B("FountainBowl", v3(1.2, 10, 10), v3(0, 7.4, 0), rgb(214, 214, 222), { shape = "Cylinder", rot = UP, material = "Marble", collide = false })
+	B("FountainBowlGoo", v3(0.3, 8.6, 8.6), v3(0, 8.05, 0), GOO, { shape = "Cylinder", rot = UP, material = "Neon", collide = false, shadow = false })
+	local glow = Instance.new("PointLight")
+	glow.Color = GOO
+	glow.Range = 22
+	glow.Brightness = 1.2
+	glow.Shadows = false
+	glow.Parent = fountainTop
+	local bubbles = Instance.new("ParticleEmitter")
+	bubbles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	bubbles.Rate = 8
+	bubbles.Lifetime = NumberRange.new(2, 3)
+	bubbles.Speed = NumberRange.new(1, 2)
+	bubbles.SpreadAngle = Vector2.new(60, 60)
+	bubbles.Size = NumberSequence.new(0.5, 0)
+	bubbles.Color = ColorSequence.new(rgb(200, 255, 170))
+	bubbles.LightEmission = 0.8
+	bubbles.EmissionDirection = Enum.NormalId.Top
+	bubbles.Parent = fountainTop
 
 	-- Welcome arch on the south side (towards the houses)
-	B("ArchL", v3(16, 2, 2), v3(-13, 8, 52), GOO, { shape = "Cylinder", rot = UP })
-	B("ArchR", v3(16, 2, 2), v3(13, 8, 52), GOO, { shape = "Cylinder", rot = UP })
+	for _, x in ipairs({ -13, 13 }) do
+		B("ArchPillar", v3(16, 2, 2), v3(x, 8, 52), GOO, { shape = "Cylinder", rot = UP, material = "Glass", reflectance = 0.15 })
+		B("ArchBase", v3(3.4, 1.2, 3.4), v3(x, 0.6, 52), rgb(210, 210, 216), { material = "Marble" })
+		B("ArchCap", v3(3, 1, 3), v3(x, 16.3, 52), GOLD, { material = "Glass", reflectance = 0.3 })
+	end
+	B("ArchBeam", v3(30, 1.2, 1.6), v3(0, 15.4, 52), DARK, { material = "Metal", collide = false })
 	sign("RAISE BRADY GOO", v3(30, 5, 1.2), CFrame.new(0, 18, 52), DARK, GOO, Enum.NormalId.Front)
 	sign("RAISE BRADY GOO", v3(30, 5, 1.2), CFrame.new(0, 18, 52.1), DARK, GOO, Enum.NormalId.Back)
 
@@ -186,16 +306,28 @@ function MapBuilder.build()
 		if i % 2 == 0 then
 			bench(math.cos(angle) * 46, math.sin(angle) * 46, math.deg(math.atan2(math.cos(angle), math.sin(angle))) + 180)
 		else
-			lampPost(math.cos(angle) * 52, math.sin(angle) * 52)
+			streetLamp(math.cos(angle) * 52, math.sin(angle) * 52, -math.deg(angle) - 90)
 		end
 	end
 
 	-- Paths to every area
-	B("PathNorth", v3(16, 0.3, 50), v3(0, 0.15, -78), PATH, { material = "Concrete" })
-	B("PathEast", v3(46, 0.3, 16), v3(77, 0.15, 0), PATH, { material = "Concrete" })
-	B("PathWest", v3(50, 0.3, 16), v3(-80, 0.15, 0), PATH, { material = "Concrete" })
-	B("PathNE", v3(14, 0.3, 46), CFrame.new(57, 0.15, -57) * CFrame.Angles(0, rad(-45), 0), PATH, { material = "Concrete" })
-	B("PathNW", v3(14, 0.3, 46), CFrame.new(-57, 0.15, -57) * CFrame.Angles(0, rad(45), 0), PATH, { material = "Concrete" })
+	local paths = {
+		{ "PathNorth", v3(16, 0.3, 50), CFrame.new(0, 0.15, -78) },
+		{ "PathEast", v3(46, 0.3, 16), CFrame.new(77, 0.15, 0) },
+		{ "PathWest", v3(50, 0.3, 16), CFrame.new(-80, 0.15, 0) },
+		{ "PathNE", v3(14, 0.3, 46), CFrame.new(57, 0.15, -57) * CFrame.Angles(0, rad(-45), 0) },
+		{ "PathNW", v3(14, 0.3, 46), CFrame.new(-57, 0.15, -57) * CFrame.Angles(0, rad(45), 0) },
+	}
+	for _, path in ipairs(paths) do
+		B(path[1], path[2], path[3], PATH, { material = "Cobblestone" })
+		-- low stone edging on both sides
+		local long = path[2].Z > path[2].X
+		local edge = long and v3(0.6, 0.5, path[2].Z) or v3(path[2].X, 0.5, 0.6)
+		local offset = long and v3(path[2].X / 2 + 0.3, 0.25, 0) or v3(0, 0.25, path[2].Z / 2 + 0.3)
+		B("PathEdge", edge, path[3] * CFrame.new(offset), rgb(160, 152, 140), { material = "Slate", shadow = false })
+		B("PathEdge", edge, path[3] * CFrame.new(-offset.X, offset.Y, -offset.Z), rgb(160, 152, 140), { material = "Slate", shadow = false })
+		pave(path[3], v3(path[2].X + 4, 4, path[2].Z + 4), M.Cobblestone)
+	end
 
 	local function directionSign(text, x, z, yaw)
 		local cf = CFrame.new(x, 0, z) * CFrame.Angles(0, rad(yaw), 0)
@@ -217,12 +349,48 @@ function MapBuilder.build()
 	store.Name = "Store"
 	store.Parent = map
 	local so = { parent = store }
-	B("StoreFloor", v3(60, 0.6, 44), v3(0, 0.3, -126), rgb(236, 232, 224), { parent = store, material = "Marble" })
-	B("StoreBack", v3(60, 20, 1.5), v3(0, 10, -147.2), rgb(40, 40, 48), so)
-	B("StoreWallL", v3(1.5, 20, 44), v3(-29.2, 10, -126), rgb(40, 40, 48), so)
-	B("StoreWallR", v3(1.5, 20, 44), v3(29.2, 10, -126), rgb(40, 40, 48), so)
-	local storeRoof = B("StoreRoof", v3(64, 1.5, 48), v3(0, 20.7, -126), rgb(232, 66, 78), { parent = store, collide = false })
-	CollectionService:AddTag(storeRoof, "HouseRoof")
+	B("StoreFloor", v3(60, 0.6, 44), v3(0, 0.3, -126), rgb(236, 232, 224), { parent = store, material = "CeramicTiles" })
+	B("StoreBack", v3(60, 20, 1.5), v3(0, 10, -147.2), rgb(52, 50, 60), { parent = store, material = "Plaster" })
+	B("StoreWallL", v3(1.5, 20, 44), v3(-29.2, 10, -126), rgb(52, 50, 60), { parent = store, material = "Plaster" })
+	B("StoreWallR", v3(1.5, 20, 44), v3(29.2, 10, -126), rgb(52, 50, 60), { parent = store, material = "Plaster" })
+	for _, x in ipairs({ -12, 12 }) do
+		local lamp = B("StorePendant", v3(2.4, 2.4, 2.4), v3(x, 17, -126), GOLD, { parent = store, shape = "Ball", material = "Neon", collide = false, shadow = false })
+		local light = Instance.new("PointLight")
+		light.Range = 30
+		light.Brightness = 1.2
+		light.Color = rgb(255, 236, 200)
+		light.Shadows = false
+		light.Parent = lamp
+	end
+	local storeRoof = B("StoreRoof", v3(64, 1.5, 48), v3(0, 20.7, -126), rgb(232, 66, 78), { parent = store, collide = false, material = "Metal" })
+	local storeTrim = B("StoreRoofTrim", v3(65, 0.8, 49), v3(0, 21.6, -126), WHITE, { parent = store, collide = false, material = "Plaster" })
+	roofGroup(store, { storeRoof, storeTrim }, CFrame.new(0, 10, -126), v3(60, 22, 46))
+	pave(CFrame.new(0, 0, -128), v3(68, 4, 62), M.Pavement)
+	-- shop front: brick piers, display windows, striped awning
+	for _, x in ipairs({ -28.4, -9, 9, 28.4 }) do
+		B("StorePier", v3(3, 20, 2), v3(x, 10, -104.4), rgb(176, 84, 66), { parent = store, material = "Brick" })
+	end
+	for _, side in ipairs({ -1, 1 }) do
+		local cx = side * 18.7
+		B("StoreBase", v3(16.4, 2.4, 1.6), v3(cx, 1.2, -104.4), rgb(176, 84, 66), { parent = store, material = "Brick" })
+		local glass = B("StoreWindow", v3(16.4, 11, 0.3), v3(cx, 7.9, -104.2), rgb(190, 224, 255), { parent = store, material = "Glass", transparency = 0.55, shadow = false })
+		CollectionService:AddTag(glass, Environment.NightWindowTag)
+		B("StoreMullion", v3(0.4, 11, 0.5), v3(cx, 7.9, -104.1), DARK, { parent = store, material = "Metal", collide = false })
+		B("StoreHeader", v3(16.4, 1, 0.8), v3(cx, 13.9, -104.2), DARK, { parent = store, material = "Metal", collide = false })
+		-- a mannequin in each window wearing one of Brady's fits
+		local mx = cx + side * 3
+		B("MannequinStand", v3(0.3, 1.8, 1.8), v3(mx, 2.55, -107), DARK, { parent = store, shape = "Cylinder", rot = UP, collide = false })
+		B("MannequinLegs", v3(1.4, 3, 0.8), v3(mx, 4.2, -107), side < 0 and rgb(112, 106, 72) or rgb(40, 40, 46), { parent = store, material = "Fabric", collide = false })
+		B("MannequinTop", v3(2, 2.6, 1), v3(mx, 7, -107), side < 0 and rgb(170, 172, 178) or rgb(196, 36, 42), { parent = store, material = "Fabric", collide = false })
+		B("MannequinHead", v3(1.3, 1.3, 1.3), v3(mx, 9, -107), rgb(236, 230, 220), { parent = store, shape = "Ball", collide = false })
+	end
+	B("StoreAwningFrame", v3(58, 0.4, 0.4), v3(0, 15.2, -104.2), DARK, { parent = store, material = "Metal", collide = false })
+	for i = 0, 13 do
+		B("StoreAwning", v3(4.1, 0.3, 5), CFrame.new(-26.7 + i * 4.1, 15.4, -101.9) * CFrame.Angles(rad(-18), 0, 0), i % 2 == 0 and rgb(232, 66, 78) or WHITE, { parent = store, material = "Fabric", collide = false, shadow = i % 2 == 0 })
+	end
+	B("StoreMat", v3(8, 0.1, 4), v3(0, 0.65, -102), rgb(60, 60, 70), { parent = store, material = "Carpet", collide = false, shadow = false })
+	flowerBed(CFrame.new(-18.7, 0, -100.6), 14)
+	flowerBed(CFrame.new(18.7, 0, -100.6), 14)
 	sign("GOO THRIFT & ARCHIVE", v3(44, 6, 1), CFrame.new(0, 25, -103.5), DARK, rgb(232, 66, 78))
 	B("StoreStripe", v3(60, 0.8, 0.6), v3(0, 19.6, -104.2), GOO, { parent = store, material = "Neon", collide = false })
 
@@ -275,7 +443,9 @@ function MapBuilder.build()
 	runwayFolder.Name = "Runway"
 	runwayFolder.Parent = map
 	local ro = { parent = runwayFolder }
-	B("Stage", v3(34, 3, 44), v3(165, 1.5, 0), rgb(40, 40, 48), ro)
+	B("Stage", v3(34, 3, 44), v3(165, 1.5, 0), rgb(40, 40, 48), { parent = runwayFolder, material = "WoodPlanks" })
+	pave(CFrame.new(138, 0, 0), v3(104, 4, 60), M.Pavement)
+	B("RunwayCarpet", v3(46, 0.2, 5), v3(124, 3.1, 0), rgb(200, 30, 50), { parent = runwayFolder, material = "Carpet", collide = false, shadow = false })
 	B("Catwalk", v3(50, 3, 10), v3(123, 1.5, 0), WHITE, { parent = runwayFolder, material = "Marble" })
 	B("CatwalkGlowL", v3(50, 0.3, 0.5), v3(123, 3.1, -4.8), rgb(255, 110, 225), { parent = runwayFolder, material = "Neon", collide = false, shadow = false })
 	B("CatwalkGlowR", v3(50, 0.3, 0.5), v3(123, 3.1, 4.8), rgb(255, 110, 225), { parent = runwayFolder, material = "Neon", collide = false, shadow = false })
@@ -331,14 +501,19 @@ function MapBuilder.build()
 	arcade.Name = "Arcade"
 	arcade.Parent = map
 	local ao = { parent = arcade }
-	B("ArcadeFloor", v3(54, 0.6, 48), v3(-132, 0.3, 0), rgb(48, 40, 80), ao)
+	B("ArcadeFloor", v3(54, 0.6, 48), v3(-132, 0.3, 0), rgb(58, 44, 96), { parent = arcade, material = "Carpet" })
+	pave(CFrame.new(-132, 0, 0), v3(60, 4, 54), M.Pavement)
 	for _, x in ipairs({ -157, -107 }) do
 		for _, z in ipairs({ -22, 22 }) do
 			B("ArcadePillar", v3(17, 2, 2), v3(x, 8.5, z), rgb(200, 50, 200), { parent = arcade, shape = "Cylinder", rot = UP })
 		end
 	end
-	local arcadeRoof = B("ArcadeRoof", v3(58, 1.2, 52), v3(-132, 17.6, 0), rgb(34, 28, 60), { parent = arcade, collide = false })
-	CollectionService:AddTag(arcadeRoof, "HouseRoof")
+	local arcadeRoof = B("ArcadeRoof", v3(58, 1.2, 52), v3(-132, 17.6, 0), rgb(34, 28, 60), { parent = arcade, collide = false, material = "Metal" })
+	local arcadeEdges = { arcadeRoof }
+	for _, edge in ipairs({ { v3(58.6, 0.4, 0.4), v3(-132, 18.3, 26) }, { v3(58.6, 0.4, 0.4), v3(-132, 18.3, -26) }, { v3(0.4, 0.4, 52.6), v3(-161, 18.3, 0) }, { v3(0.4, 0.4, 52.6), v3(-103, 18.3, 0) } }) do
+		table.insert(arcadeEdges, B("ArcadeRoofNeon", edge[1], edge[2], rgb(120, 255, 220), { parent = arcade, material = "Neon", collide = false, shadow = false }))
+	end
+	roofGroup(arcade, arcadeEdges, CFrame.new(-132, 8.5, 0), v3(56, 17, 50))
 	sign("GOO ARCADE", v3(1, 5, 30), CFrame.new(-104.5, 21, 0), DARK, rgb(120, 255, 200), Enum.NormalId.Right)
 	B("ArcadeNeon", v3(0.5, 0.5, 48), v3(-105.5, 17, 0), rgb(255, 110, 225), { parent = arcade, material = "Neon", collide = false, shadow = false })
 	sign("+25% rewards here!", v3(0.6, 2, 16), CFrame.new(-104.8, 13, 0), DARK, GOLD, Enum.NormalId.Right)
@@ -371,6 +546,8 @@ function MapBuilder.build()
 	sign("🏃 GOO OBBY - step on START", v3(18, 3, 0.6), CFrame.new(-132, 8, 33), DARK, GOO, Enum.NormalId.Front)
 	B("ObbyPostL", v3(0.8, 8, 0.8), v3(-140, 4, 33), DARK, oo)
 	B("ObbyPostR", v3(0.8, 8, 0.8), v3(-124, 4, 33), DARK, oo)
+	pave(CFrame.new(-132, 0, 40), v3(20, 4, 22), M.Pavement)
+	pave(CFrame.new(-156, 0, 96), v3(86, 4, 106), M.Pavement)
 	local obbyStart = touchable(B("ObbyStart", v3(10, 0.6, 8), v3(-132, 0.3, 42), GOO, { parent = obbyFolder, material = "Neon" }))
 	local pool = touchable(B("GooPool", v3(76, 0.8, 96), v3(-156, 0.4, 96), rgb(96, 210, 60), { parent = obbyFolder, material = "Neon", transparency = 0.15 }))
 	B("PoolRim", v3(80, 0.5, 100), v3(-156, 0.2, 96), rgb(60, 60, 68), { parent = obbyFolder, collide = false })
@@ -413,8 +590,24 @@ function MapBuilder.build()
 	-- PARK (north-east)
 	----------------------------------------------------------------------
 	local parkCenter = v3(108, 0, -108)
-	B("ParkLawn", v3(0.4, 100, 100), v3(parkCenter.X, 0.12, parkCenter.Z), rgb(86, 178, 80), { shape = "Cylinder", rot = UP, material = "Grass" })
-	B("Pond", v3(0.5, 32, 32), v3(118, 0.3, -118), rgb(80, 170, 235), { shape = "Cylinder", rot = UP, material = "Glass", transparency = 0.25, collide = false })
+	-- the lawn and pond are terrain (animated grass + real water). Without
+	-- terrain (unit tests) a simple part stands in for the pond.
+	if not Workspace:FindFirstChildOfClass("Terrain") then
+		B("Pond", v3(0.5, 32, 32), v3(118, 0.3, -118), rgb(80, 170, 235), { shape = "Cylinder", rot = UP, material = "Glass", transparency = 0.25, collide = false })
+	end
+	for _, pad in ipairs({ { 110, -112, 2.6 }, { 126, -125, 2 }, { 112, -127, 2.2 }, { 127, -109, 1.8 } }) do
+		B("LilyPad", v3(0.12, pad[3], pad[3]), v3(pad[1], -0.05, pad[2]), rgb(70, 160, 70), { shape = "Cylinder", rot = UP, collide = false, shadow = false })
+		B("LilyFlower", v3(0.6, 0.6, 0.6), v3(pad[1] + 0.3, 0.2, pad[2]), rgb(255, 170, 210), { shape = "Ball", collide = false, shadow = false })
+	end
+	for _, b in ipairs({ { 88, -84 }, { 136, -82 }, { 152, -130 }, { 74, -134 }, { 102, -150 }, { 120, -96 } }) do
+		bush(b[1], b[2], 1 + (b[1] % 3) * 0.15, FLOWERS[(b[1] + b[2]) % #FLOWERS + 1])
+	end
+	flowerBed(CFrame.new(84, 0, -106) * CFrame.Angles(0, rad(90), 0), 10)
+	flowerBed(CFrame.new(108, 0, -84), 12)
+	Environment.ambientFx(map, parkCenter, 36, "butterflies")
+	Environment.ambientFx(map, parkCenter, 40, "fireflies")
+	streetLamp(80, -80, 135)
+	streetLamp(140, -140, -45)
 	B("PondIsland", v3(1.2, 9, 9), v3(118, 0.6, -118), rgb(214, 196, 140), { shape = "Cylinder", rot = UP, material = "Sand" })
 	tree(120, -120, 0.7)
 	for _, t in ipairs({ { 82, -140 }, { 96, -150 }, { 140, -142 }, { 150, -116 }, { 146, -88 }, { 128, -70 }, { 84, -96 }, { 70, -118 }, { 132, -150 } }) do
@@ -423,11 +616,12 @@ function MapBuilder.build()
 	bench(96, -92, 135)
 	bench(100, -128, 45)
 	bench(134, -100, -90)
-	local flowerColors = { rgb(255, 110, 180), rgb(255, 220, 80), rgb(170, 110, 255), WHITE }
 	for i = 0, 15 do
 		local angle = i / 16 * math.pi * 2
 		local r = 30 + (i % 3) * 6
-		B("Flower", v3(0.6, 1.4, 1.4), v3(parkCenter.X + math.cos(angle) * r, 0.6, parkCenter.Z + math.sin(angle) * r), flowerColors[i % 4 + 1], { shape = "Cylinder", rot = UP, collide = false })
+		local fx, fz = parkCenter.X + math.cos(angle) * r, parkCenter.Z + math.sin(angle) * r
+		B("FlowerStem", v3(1.2, 0.18, 0.18), v3(fx, 0.6, fz), rgb(70, 150, 60), { shape = "Cylinder", rot = UP, collide = false, shadow = false })
+		B("Flower", v3(0.9, 0.9, 0.9), v3(fx, 1.35, fz), FLOWERS[i % #FLOWERS + 1], { shape = "Ball", collide = false, shadow = false })
 	end
 	-- Swing set (decor)
 	B("SwingBar", v3(12, 0.5, 0.5), v3(90, 9, -112), DARK, { material = "Metal" })
@@ -448,7 +642,32 @@ function MapBuilder.build()
 	foodFolder.Name = "FoodCourt"
 	foodFolder.Parent = map
 	local fo = { parent = foodFolder }
-	B("FoodFloor", v3(66, 0.4, 66), v3(-108, 0.2, -108), rgb(240, 226, 196), { parent = foodFolder, material = "Concrete" })
+	B("FoodFloor", v3(66, 0.4, 66), v3(-108, 0.2, -108), rgb(240, 226, 196), { parent = foodFolder, material = "CeramicTiles" })
+	pave(CFrame.new(-108, 0, -108), v3(70, 4, 70), M.Pavement)
+	-- string lights between four poles
+	local corners = { v3(-139, 0, -139), v3(-77, 0, -139), v3(-77, 0, -77), v3(-139, 0, -77) }
+	for _, c in ipairs(corners) do
+		B("LightPole", v3(14, 0.5, 0.5), c + v3(0, 7, 0), DARK, { parent = foodFolder, shape = "Cylinder", rot = UP, material = "Wood" })
+	end
+	local bulbColors = { rgb(255, 220, 140), rgb(255, 160, 120), rgb(180, 220, 255), rgb(255, 150, 210) }
+	for i = 1, 4 do
+		local a, b = corners[i] + v3(0, 13.6, 0), corners[i % 4 + 1] + v3(0, 13.6, 0)
+		for k = 1, 9 do
+			local t = k / 10
+			local sag = math.sin(t * math.pi) * 2.2
+			local bulb = B("StringBulb", v3(0.6, 0.6, 0.6), a:Lerp(b, t) - v3(0, sag, 0), bulbColors[(k + i) % 4 + 1], { parent = foodFolder, shape = "Ball", material = "Neon", collide = false, shadow = false })
+			if k == 5 then
+				local light = Instance.new("PointLight")
+				light.Range = 22
+				light.Brightness = 1.4
+				light.Color = rgb(255, 214, 160)
+				light.Shadows = false
+				light.Enabled = false
+				light.Parent = bulb
+				CollectionService:AddTag(light, Environment.NightLightTag)
+			end
+		end
+	end
 	local stalls = {
 		{ name = "🍕 PIZZA", color = rgb(232, 66, 78), x = -128 },
 		{ name = "🍔 BURGERS", color = rgb(255, 170, 60), x = -108 },
@@ -482,23 +701,52 @@ function MapBuilder.build()
 	----------------------------------------------------------------------
 	local rows = math.ceil(Config.PlotCount / 2)
 	local streetLength = rows * 80 + 30
-	B("Street", v3(16, 0.3, streetLength), v3(0, 0.15, 58 + streetLength / 2), rgb(70, 72, 80), { material = "Concrete" })
-	B("StreetLine", v3(0.6, 0.32, streetLength - 6), v3(0, 0.16, 58 + streetLength / 2), GOLD, { collide = false })
+	local streetZ = 58 + streetLength / 2
+	B("Street", v3(16, 0.3, streetLength), v3(0, 0.15, streetZ), rgb(70, 72, 80), { material = "Asphalt" })
+	B("StreetLine", v3(0.3, 0.32, streetLength - 6), v3(-0.35, 0.16, streetZ), GOLD, { collide = false, shadow = false })
+	B("StreetLine", v3(0.3, 0.32, streetLength - 6), v3(0.35, 0.16, streetZ), GOLD, { collide = false, shadow = false })
+	for _, side in ipairs({ -1, 1 }) do
+		B("Sidewalk", v3(5, 0.5, streetLength), v3(side * 10.5, 0.25, streetZ), rgb(206, 202, 194), { material = "Pavement" })
+		B("Curb", v3(0.5, 0.55, streetLength), v3(side * 8.2, 0.27, streetZ), rgb(176, 172, 166), { material = "Concrete", shadow = false })
+	end
+	for i = 0, 6 do
+		B("Crosswalk", v3(1.4, 0.33, 7), v3(-6 + i * 2, 0.16, 74), WHITE, { collide = false, shadow = false })
+	end
+	pave(CFrame.new(0, 0, streetZ), v3(30, 4, streetLength + 8), M.Asphalt)
+	for row = 0, math.ceil(Config.PlotCount / 2) - 1 do
+		streetLamp(-10.5, 110 + row * 80 + 30, 90)
+		streetLamp(10.5, 110 + row * 80 - 10, -90)
+	end
 	local plots = {}
 	for index = 1, Config.PlotCount do
 		local cf = MapBuilder.plotCFrame(index)
 		plots[index] = cf
-		B("PlotLawn", v3(Config.PlotSize, 0.2, Config.PlotSize), cf * CFrame.new(0, 0.1, 0), rgb(120, 206, 110), { material = "Grass" })
-		B("PlotWalk", v3(6, 0.24, 30), cf * CFrame.new(0, 0.12, 27), PATH, { material = "Concrete" })
-		local mailbox = cf * CFrame.new(6, 0, 40)
+		if not Workspace:FindFirstChildOfClass("Terrain") then
+			B("PlotLawn", v3(Config.PlotSize, 0.2, Config.PlotSize), cf * CFrame.new(0, 0.1, 0), rgb(120, 206, 110), { material = "Grass" })
+		end
+		local mailbox = cf * CFrame.new(6, 0, 38)
 		B("MailboxPost", v3(0.5, 3.4, 0.5), mailbox * CFrame.new(0, 1.7, 0), WOOD, { material = "Wood" })
-		B("Mailbox", v3(1.4, 1.2, 2.2), mailbox * CFrame.new(0, 3.8, 0), rgb(232, 66, 78), {})
-		local lamp = cf * CFrame.new(-8, 0, 40)
-		lampPost(lamp.Position.X, lamp.Position.Z)
+		B("Mailbox", v3(1.4, 1.2, 2.2), mailbox * CFrame.new(0, 3.8, 0), rgb(232, 66, 78), { material = "Metal" })
+		B("MailboxFlag", v3(0.1, 0.8, 0.3), mailbox * CFrame.new(0.75, 4.3, 0.4), GOLD, { collide = false, shadow = false })
+		-- hedges around the yard (the front has a gap for the walkway)
+		local half = Config.PlotSize / 2
+		hedge(cf * CFrame.new(0, 0, -half + 1), Config.PlotSize - 2)
+		hedge(cf * CFrame.new(-half + 1, 0, 0) * CFrame.Angles(0, rad(90), 0), Config.PlotSize - 2)
+		hedge(cf * CFrame.new(half - 1, 0, 0) * CFrame.Angles(0, rad(90), 0), Config.PlotSize - 2)
+		hedge(cf * CFrame.new(-(half + 5) / 2, 0, half - 1), half - 6)
+		hedge(cf * CFrame.new((half + 5) / 2, 0, half - 1), half - 6)
+	end
+	-- trees in the gaps between neighbouring yards
+	for row = 0, math.ceil(Config.PlotCount / 2) - 2 do
+		local z = 110 + row * 80 + 40
+		tree(-24, z, 0.8)
+		tree(24, z, 0.8)
+		bush(-40, z, 0.8, FLOWERS[row % #FLOWERS + 1])
+		bush(40, z, 0.8, FLOWERS[(row + 2) % #FLOWERS + 1])
 	end
 	sign("HOME SWEET GOO", v3(22, 4, 1), CFrame.new(0, 17, 66), DARK, GOLD, Enum.NormalId.Front)
-	B("StreetArchL", v3(15, 1.6, 1.6), v3(-11, 7.5, 66), DARK, { shape = "Cylinder", rot = UP })
-	B("StreetArchR", v3(15, 1.6, 1.6), v3(11, 7.5, 66), DARK, { shape = "Cylinder", rot = UP })
+	B("StreetArchL", v3(15, 1.6, 1.6), v3(-11, 7.5, 66), DARK, { shape = "Cylinder", rot = UP, material = "Metal" })
+	B("StreetArchR", v3(15, 1.6, 1.6), v3(11, 7.5, 66), DARK, { shape = "Cylinder", rot = UP, material = "Metal" })
 
 	----------------------------------------------------------------------
 	-- SECRET GOO CAVE (hidden behind the park)
@@ -513,19 +761,23 @@ function MapBuilder.build()
 		o.parent = cave
 		return B(name, size, caveCF * (typeof(offset) == "CFrame" and offset or CFrame.new(offset)), color, o)
 	end
-	C("CaveFloor", v3(34, 1, 34), v3(0, 0.5, 0), rgb(50, 46, 60), { material = "Slate" })
-	C("CaveBack", v3(36, 18, 3), v3(0, 9, -17), rock, { material = "Slate" })
-	C("CaveL", v3(3, 18, 36), v3(-17, 9, 0), rock, { material = "Slate" })
-	C("CaveR", v3(3, 18, 36), v3(17, 9, 0), rock, { material = "Slate" })
-	C("CaveFrontL", v3(13, 18, 3), v3(-11.5, 9, 17), rock, { material = "Slate" })
-	C("CaveFrontR", v3(13, 18, 3), v3(11.5, 9, 17), rock, { material = "Slate" })
-	C("CaveFrontTop", v3(10, 8, 3), v3(0, 14, 17), rock, { material = "Slate" })
+	C("CaveFloor", v3(34, 1, 34), v3(0, 0.5, 0), rgb(50, 46, 60), { material = "Basalt" })
+	C("CaveBack", v3(36, 18, 3), v3(0, 9, -17), rock, { material = "Basalt" })
+	C("CaveL", v3(3, 18, 36), v3(-17, 9, 0), rock, { material = "Basalt" })
+	C("CaveR", v3(3, 18, 36), v3(17, 9, 0), rock, { material = "Basalt" })
+	C("CaveFrontL", v3(13, 18, 3), v3(-11.5, 9, 17), rock, { material = "Basalt" })
+	C("CaveFrontR", v3(13, 18, 3), v3(11.5, 9, 17), rock, { material = "Basalt" })
+	C("CaveFrontTop", v3(10, 8, 3), v3(0, 14, 17), rock, { material = "Basalt" })
 	-- The "soft rock": looks solid, but you can walk straight through it.
-	C("FakeRock", v3(10, 10, 3), v3(0, 5, 17), rock, { material = "Slate", collide = false })
-	local caveRoof = C("CaveRoof", v3(38, 3, 38), v3(0, 19.5, 0), rock, { material = "Slate", collide = false })
-	CollectionService:AddTag(caveRoof, "HouseRoof")
+	C("FakeRock", v3(10, 10, 3), v3(0, 5, 17), rock, { material = "Basalt", collide = false })
+	local caveRoof = C("CaveRoof", v3(38, 3, 38), v3(0, 19.5, 0), rock, { material = "Basalt", collide = false })
+	roofGroup(cave, { caveRoof }, caveCF * CFrame.new(0, 10, 0), v3(34, 20, 34))
+	for i, c in ipairs({ { -14, -14, 30 }, { 14, -13, -25 }, { -13, 12, 15 }, { 0, -15, 0 } }) do
+		local crystal = C("Crystal", v3(1.2, 4 + i % 2 * 2, 1.2), CFrame.new(c[1], 2.5, c[2]) * CFrame.Angles(rad(c[3]), rad(i * 40), rad(c[3] * 0.5)), rgb(150, 90, 255), { material = "Glass", reflectance = 0.3, collide = false })
+		crystal.Transparency = 0.15
+	end
 	for _, boulder in ipairs({ { -20, 4, 22, 12 }, { 21, 3, 20, 10 }, { 24, 5, -6, 14 }, { -24, 4, -8, 13 }, { 0, 6, -24, 16 } }) do
-		C("Boulder", v3(boulder[4], boulder[4], boulder[4]), v3(boulder[1], boulder[2], boulder[3]), PartUtil.shade(rock, 0.92), { shape = "Ball", material = "Slate" })
+		C("Boulder", v3(boulder[4], boulder[4], boulder[4]), v3(boulder[1], boulder[2], boulder[3]), PartUtil.shade(rock, 0.92), { shape = "Ball", material = "Rock" })
 	end
 	C("GooPuddle", v3(0.3, 10, 10), CFrame.new(-8, 1.1, -6) * UP, GOO, { shape = "Cylinder", material = "Neon", collide = false })
 	C("GooPuddle", v3(0.3, 7, 7), CFrame.new(9, 1.1, 5) * UP, GOO, { shape = "Cylinder", material = "Neon", collide = false })
@@ -542,6 +794,40 @@ function MapBuilder.build()
 	caveLight.Parent = pedestal
 
 	----------------------------------------------------------------------
+	-- GOO BEACH (west edge, sand + ocean are terrain)
+	----------------------------------------------------------------------
+	local beach = Instance.new("Folder")
+	beach.Name = "GooBeach"
+	beach.Parent = map
+	for i, p in ipairs({ { -268, -40 }, { -290, 20 }, { -272, 90 }, { -296, 160 }, { -270, 230 }, { -292, 300 }, { -275, 380 } }) do
+		palm(p[1], p[2], 1.1 + (i % 3) * 0.12, i * 47)
+	end
+	local towelColors = { rgb(255, 110, 180), rgb(72, 150, 255), GOO, GOLD }
+	for i, p in ipairs({ { -300, 40 }, { -306, 120 }, { -298, 200 } }) do
+		local color = towelColors[i % #towelColors + 1]
+		B("UmbrellaPole", v3(9, 0.35, 0.35), v3(p[1], 4.5, p[2]), WHITE, { parent = beach, shape = "Cylinder", rot = UP })
+		B("UmbrellaTop", v3(0.6, 11, 11), v3(p[1], 9, p[2]), color, { parent = beach, shape = "Cylinder", rot = UP, material = "Fabric", collide = false })
+		B("UmbrellaTip", v3(1.2, 1.2, 1.2), v3(p[1], 9.6, p[2]), WHITE, { parent = beach, shape = "Ball", collide = false, shadow = false })
+		B("Towel", v3(4, 0.1, 7), CFrame.new(p[1] + 4, 0.05, p[2] + 1) * CFrame.Angles(0, rad(i * 20), 0), towelColors[(i + 1) % #towelColors + 1], { parent = beach, material = "Fabric", collide = false, shadow = false })
+	end
+	-- lifeguard chair
+	for _, o in ipairs({ { -1.5, -1.5 }, { 1.5, -1.5 }, { -1.5, 1.5 }, { 1.5, 1.5 } }) do
+		B("ChairLeg", v3(0.4, 8, 0.4), v3(-310 + o[1], 4, 80 + o[2]), WHITE, { parent = beach, material = "Wood" })
+	end
+	B("ChairSeat", v3(4, 0.5, 4), v3(-310, 8.2, 80), rgb(232, 66, 78), { parent = beach, material = "Wood" })
+	B("ChairBack", v3(4, 3, 0.4), v3(-310, 9.9, 81.8), rgb(232, 66, 78), { parent = beach, material = "Wood", collide = false })
+	-- sandcastle
+	B("Castle", v3(4, 2, 4), v3(-284, 1, 60), rgb(232, 206, 150), { parent = beach, material = "Sand" })
+	for _, o in ipairs({ { -1.6, -1.6 }, { 1.6, -1.6 }, { -1.6, 1.6 }, { 1.6, 1.6 } }) do
+		B("CastleTower", v3(3, 1.2, 1.2), v3(-284 + o[1], 2.5, 60 + o[2]), rgb(226, 200, 144), { parent = beach, shape = "Cylinder", rot = UP, material = "Sand" })
+	end
+	B("CastleFlag", v3(0.1, 1, 0.6), v3(-284, 3.5, 60), GOO, { parent = beach, collide = false, shadow = false })
+	B("BeachSignPost", v3(0.6, 6, 0.6), v3(-252, 3, 0), WOOD, { parent = beach, material = "Wood" })
+	sign("🏖️ GOO BEACH", v3(10, 2.6, 0.4), CFrame.new(-252, 6.8, 0) * CFrame.Angles(0, rad(90), 0), rgb(72, 150, 255), WHITE, Enum.NormalId.Back)
+	sign("🏖️ GOO BEACH", v3(10, 2.6, 0.4), CFrame.new(-252, 6.8, 0.05) * CFrame.Angles(0, rad(90), 0), rgb(72, 150, 255), WHITE, Enum.NormalId.Front)
+	Environment.ambientFx(map, v3(-290, 0, 140), 50, "fireflies")
+
+	----------------------------------------------------------------------
 	-- HIDDEN SPOTS
 	----------------------------------------------------------------------
 	local function spot(x, y, z)
@@ -555,6 +841,7 @@ function MapBuilder.build()
 		spot(132, 0.3, -146), spot(116, 1.3, -116), spot(78, 0.3, -130), spot(146, 0.3, -80), -- park
 		spot(-132, 0.3, -141), spot(-82, 0.5, -136), spot(-108, 0.5, -112), -- food court
 		spot(4, 0.4, 300), spot(-90, 0.3, 150), spot(90, 0.3, 390), spot(-4, 0.4, 58 + streetLength - 4), -- houses
+		spot(-284, 3.4, 60), -- on top of the sandcastle
 		(caveCF * CFrame.new(11, 1.1, -11)), -- cave
 	}
 	local secretSpots = {
@@ -565,12 +852,13 @@ function MapBuilder.build()
 		spot(-108, 0.5, -117), -- behind the giant burger
 		spot(5, 0.4, 58 + streetLength - 2), -- end of the street
 		spot(-164, 0.9, -19), -- tucked behind the arcade machines
-		spot(-300, 0.3, 380), -- far corner of the map
+		spot(-300, 0.3, 380), -- far end of the beach
+		spot(-310, 8.8, 80), -- up in the lifeguard chair
 	}
 
 	map.Parent = Workspace
 
-	return {
+	local info = {
 		folder = map,
 		spawn = CFrame.lookAt(v3(0, 0.6, 34), v3(0, 0.6, 0)),
 		plots = plots,
@@ -597,7 +885,19 @@ function MapBuilder.build()
 		hiddenSpots = hiddenSpots,
 		secretSpots = secretSpots,
 		cavePedestal = caveCF * CFrame.new(0, 4.6, -6),
+		caveCFrame = caveCF,
+		pond = { X = 118, Z = -118, radius = 16 },
+		paint = paintList,
 	}
+
+	-- Lighting, sky, clouds and terrain. Without terrain (only possible in
+	-- the offline tests) a plain grass part is used as the ground.
+	Environment.lighting()
+	if not Environment.terrain(info) then
+		B("Ground", v3(700, 4, 960), v3(0, -2, 150), rgb(104, 196, 96), { material = "Grass" })
+	end
+	return info
 end
+
 
 return MapBuilder

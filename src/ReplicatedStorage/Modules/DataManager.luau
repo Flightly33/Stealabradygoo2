@@ -38,7 +38,7 @@ DataManager.StatKeys = {
 	"hidden", "crates", "coinsEarned", "placed", "hypes", "photos", "ageUps",
 }
 
-DataManager.SettingDefaults = { music = true, sfx = true, lowGfx = false, chatter = true, aura = "none" }
+DataManager.SettingDefaults = { music = true, sfx = true, lowGfx = false, chatter = true, dayNight = true, aura = "none" }
 
 local function newStats()
 	local stats = {}

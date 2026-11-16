@@ -46,6 +46,7 @@ local overlay = UI.frame(gui, { Name = "GameOverlay", Color = C.dark, Transparen
 overlay.Active = true
 local stage = UI.frame(overlay, { Name = "Stage", Size = UDim2.fromOffset(680, 470), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5), Color = C.bg, Corner = 22, ZIndex = 11 })
 UI.stroke(stage, 4, C.pink)
+UI.gradient(stage, 0.72)
 UI.autoScale(stage, "window")
 local gameTitle = UI.label(stage, "", { Name = "Title", Size = UDim2.new(1, -260, 0, 34), Position = UDim2.fromOffset(16, 6), TextSize = 22, AlignX = Enum.TextXAlignment.Left, ZIndex = 12 })
 local scoreLabel = UI.label(stage, "0", { Name = "Score", Size = UDim2.fromOffset(150, 34), Position = UDim2.new(1, -250, 0, 6), TextSize = 22, Color = C.gold, ZIndex = 12 })

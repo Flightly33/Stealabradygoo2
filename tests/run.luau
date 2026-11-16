@@ -529,14 +529,44 @@ test("server boots and builds the world", function()
 	end
 	check(parts > 400, "map looks empty: " .. parts .. " parts")
 	print("        (map: " .. parts .. " parts)")
-	for _, name in ipairs({ "Store", "Runway", "Arcade", "Obby", "FoodCourt", "GooCave" }) do
+	for _, name in ipairs({ "Store", "Runway", "Arcade", "Obby", "FoodCourt", "GooCave", "GooBeach" }) do
 		check(map:FindFirstChild(name), "map area missing: " .. name)
 	end
-	eq(#H.Workspace.Collectibles:GetChildren(), 25, "24 hidden blobs + the Mystery Jacket")
+	eq(#H.Workspace.Collectibles:GetChildren(), 26, "25 hidden blobs + the Mystery Jacket")
 	local remotes = RS:FindFirstChild("Remotes")
 	local Remotes = shared("Remotes")
 	eq(#remotes:GetChildren(), #Remotes.Events + #Remotes.Functions)
 	check(#H.closeCallbacks == 1, "BindToClose not registered")
+end)
+
+test("environment: lighting effects, sky, clouds and painted terrain", function()
+	local Lighting = H.game:GetService("Lighting")
+	for _, name in ipairs({ "Sky", "Atmosphere", "Bloom", "SunRays", "Grade", "DepthOfField" }) do
+		check(Lighting:FindFirstChild(name), "missing lighting effect " .. name)
+	end
+	eq(#Lighting:GetChildren(), 6, "duplicate lighting effects")
+	check(H.Workspace.Terrain:FindFirstChildOfClass("Clouds"), "no clouds")
+	check(H.Workspace.Map:FindFirstChild("Ground") == nil, "the fallback ground part should not exist when terrain does")
+	local grass, water, painted = false, false, 0
+	for _, op in ipairs(H.terrainOps) do
+		if op.op == "block" and op.material == "Grass" and op.size[1] > 500 then
+			grass = true
+		elseif op.material == "Water" then
+			water = true
+		elseif op.material == "Cobblestone" or op.material == "Pavement" or op.material == "Asphalt" then
+			painted += 1
+		end
+	end
+	check(grass and water, "terrain ground / water missing")
+	check(painted >= 12, "walkable areas must be painted so grass blades do not poke through: " .. painted)
+	local lights = H.collectionService:GetTagged("NightLight")
+	check(#lights >= 20, "expected lots of night lights, found " .. #lights)
+	for _, light in ipairs(lights) do
+		check(light.Enabled == false, "night lights must start switched off")
+		check(light.Shadows == false, "night lights should not cast shadows (performance)")
+	end
+	check(#H.collectionService:GetTagged("NightWindow") >= 2, "no night windows")
+	check(#H.collectionService:GetTagged("RoofZone") >= 3, "map roofs need roof zones")
 end)
 
 test("a new player gets data, a house, a Brady and a leaderboard", function()
@@ -993,8 +1023,8 @@ test("mirror + poses", function()
 	H.advance(30)
 	eq(rec.model:GetAttribute("State"), "Pose", "mirror poses hold until you leave")
 	H.fire(player, "Mirror", false)
-	local after = rec.model:GetAttribute("State")
-	check(after == "Idle" or after == "Walk", "leaving the mirror should release the pose, got " .. tostring(after))
+	-- (he may start a random idle pose straight away, but it must not be held)
+	check(rec.persist == nil, "leaving the mirror should release the held pose")
 	-- station prompts
 	local prompts = S.House.get(player).info.prompts
 	for _, name in ipairs({ "Bed", "Wardrobe", "Mirror", "Display", "Food", "Trophy", "Podium", "Shower", "Sink", "ShoeMat" }) do
@@ -1152,6 +1182,12 @@ test("follow mode: Brady follows the player around the map", function()
 	H.fire(player, "Care", "Sleep")
 	check(not S.Data.session(player).sleeping)
 	H.fire(player, "Care", "Call")
+	-- a random event (e.g. a dance) can keep him busy for a few seconds
+	local guard = 0
+	while S.Brady.isBusy(S.Brady.get(player)) and guard < 30 do
+		H.advance(1)
+		guard += 1
+	end
 	H.fire(player, "Care", "Follow", false)
 	check(not S.Data.session(player).following)
 	check(S.Brady.isHome(player), "stay-home should send him home")
@@ -1165,7 +1201,7 @@ test("hidden goo blobs, secret items and collections", function()
 			table.insert(blobs, child)
 		end
 	end
-	eq(#blobs, 24)
+	eq(#blobs, 25)
 	local coins = data.coins
 	H.touch(blobs[1], player)
 	check(data.coins > coins, "no coins for a hidden blob")
@@ -1177,7 +1213,7 @@ test("hidden goo blobs, secret items and collections", function()
 	for i = 2, #blobs do
 		H.touch(blobs[i], player)
 	end
-	eq(data.stats.hidden, 24)
+	eq(data.stats.hidden, 25)
 	check(data.achievements.explorer)
 	-- secret item spawn
 	local secret = run(S.Collection.forceSecret)
@@ -1730,9 +1766,9 @@ local function advanceCoarse(seconds, step)
 	H.advance(0.5)
 end
 
-test("client boots: all 17 LocalScripts run and receive the profile", function()
+test("client boots: all 18 LocalScripts run and receive the profile", function()
 	local started = H.startClient()
-	eq(#started, 17, "LocalScripts started")
+	eq(#started, 18, "LocalScripts started")
 	H.advance(4)
 	PlayerGui = player.PlayerGui
 	State = H.client.require(RS.Client.ClientState)
@@ -2186,7 +2222,8 @@ test("mirror mode: camera, poses, screenshot, exit", function()
 	check(not bar.Visible)
 	eq(H.camera.CameraType, roblox.Enum.CameraType.Custom)
 	H.advance(1)
-	check(rec.model:GetAttribute("State") ~= "Pose" and rec.model:GetAttribute("State") ~= "Mirror", "Brady is stuck at the mirror")
+	-- (a random idle pose may start right away; what matters is nothing is held)
+	check(rec.persist == nil and not S.Data.session(player).mirror, "Brady is stuck at the mirror")
 end)
 
 test("inspect another player's Brady + settings window", function()
@@ -2365,6 +2402,104 @@ test("animator: every idle, walk, state and pose produces valid joints", functio
 	S.Brady.say(rec, "archive era")
 	H.advance(0.3)
 	check(rec.model.Head:FindFirstChild("Bubble"), "no speech bubble")
+end)
+
+test("day/night: lamps, windows and fireflies switch on at night", function()
+	calm()
+	local Lighting = H.game:GetService("Lighting")
+	local TimeOfDay = shared("TimeOfDay")
+	local function advanceUntil(predicate)
+		for _ = 1, 200 do
+			if predicate(TimeOfDay.clockAt(H.now())) then
+				return true
+			end
+			H.advance(5)
+		end
+		return false
+	end
+	check(advanceUntil(function(clock)
+		return TimeOfDay.nightAmount(clock) == 0
+	end), "never reached day")
+	H.advance(0.5)
+	local dayBrightness = Lighting.Brightness
+	check(math.abs(Lighting.ClockTime - TimeOfDay.clockAt(H.now())) < 0.3, "client clock out of sync")
+	local lamp
+	for _, light in ipairs(H.collectionService:GetTagged("NightLight")) do
+		if light:IsDescendantOf(H.Workspace.Map) then
+			lamp = light -- a street lamp (house porch lights get rebuilt below)
+			break
+		end
+	end
+	check(lamp and not lamp.Enabled, "lamp on during the day")
+	check(advanceUntil(function(clock)
+		return TimeOfDay.nightAmount(clock) == 1
+	end), "never reached night")
+	H.advance(0.5)
+	check(Lighting.Brightness < dayBrightness, "night should be darker")
+	check(lamp.Enabled, "street lamps did not switch on at night")
+	local window
+	for _, part in ipairs(H.collectionService:GetTagged("NightWindow")) do
+		if part:IsDescendantOf(H.Workspace.Map) then
+			window = part -- a shop window (house windows get rebuilt below)
+			break
+		end
+	end
+	check(window, "no shop window found")
+	eq(window.Material, roblox.Enum.Material.Neon, "windows should glow at night")
+	local fireflies = H.collectionService:GetTagged("NightFx")[1]
+	check(fireflies and fireflies.Enabled, "fireflies did not come out")
+	-- a house rebuilt at night gets lit windows straight away
+	S.House.upgrade(player)
+	H.advance(0.5)
+	local lit = 0
+	for _, part in ipairs(H.collectionService:GetTagged("NightWindow")) do
+		if part:IsDescendantOf(S.House.get(player).model) and part.Material == roblox.Enum.Material.Neon then
+			lit += 1
+		end
+	end
+	check(lit >= 1, "rebuilt house windows are not lit")
+	-- "Day & night" off = permanent afternoon, lights off, windows restored
+	H.fire(player, "Setting", "dayNight", false)
+	H.advance(0.5)
+	check(math.abs(Lighting.ClockTime - 14) < 0.01, "day/night off should lock the clock at 14")
+	check(not lamp.Enabled, "lamps stayed on with day/night off")
+	check(window.Material ~= roblox.Enum.Material.Neon, "window was not restored")
+	H.fire(player, "Setting", "dayNight", true)
+	-- low graphics
+	H.fire(player, "Setting", "lowGfx", true)
+	H.advance(0.3)
+	check(not Lighting.DepthOfField.Enabled and not Lighting.SunRays.Enabled, "low graphics should drop DoF + sun rays")
+	check(not H.Workspace.Terrain:FindFirstChildOfClass("Clouds").Enabled, "low graphics should drop clouds")
+	H.fire(player, "Setting", "lowGfx", false)
+	H.advance(0.3)
+	check(Lighting.DepthOfField.Enabled and H.Workspace.Terrain:FindFirstChildOfClass("Clouds").Enabled, "effects did not come back")
+end)
+
+test("roofs fade out while you stand inside and come back outside", function()
+	calm()
+	local house = S.House.get(player).model
+	local roof = house:FindFirstChild("Roof")
+	check(roof and roof:FindFirstChild("RoofZone"), "house roof has no zone")
+	local sample
+	for _, part in ipairs(roof:GetChildren()) do
+		if part:IsA("BasePart") and part.Name ~= "RoofZone" then
+			sample = part
+			break
+		end
+	end
+	H.movePlayer(player, S.House.origin(player).Position + Vector3.new(0, 3, 0))
+	H.advance(1)
+	eq(sample.LocalTransparencyModifier, 1, "roof did not fade while inside")
+	H.movePlayer(player, S.House.doorstep(player).Position + Vector3.new(0, 3, 12))
+	H.advance(1)
+	eq(sample.LocalTransparencyModifier, 0, "roof did not come back outside")
+	-- shop roofs work the same way
+	local storeRoof = H.Workspace.Map.Store.Roof
+	H.movePlayer(player, Vector3.new(0, 3, -126))
+	H.advance(1)
+	eq(storeRoof.StoreRoof.LocalTransparencyModifier, 1, "store roof did not fade inside")
+	H.fire(player, "Visit", "Home")
+	H.advance(1)
 end)
 
 test("fuzz: mashing every visible button never errors", function()

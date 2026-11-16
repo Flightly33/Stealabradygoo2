@@ -24,17 +24,37 @@ local Sounds = require(Modules:WaitForChild("Sounds"))
 local localPlayer = Players.LocalPlayer
 
 ----------------------------------------------------------------------
--- Roofs
+-- Roofs: every roof is a Model with an invisible "RoofZone" box inside.
+-- While you stand inside the box, that whole roof fades away (locally).
 ----------------------------------------------------------------------
-local ROOF_TAG = "HouseRoof"
-local roofHidden = {} -- [part] = true while faded out
+local ZONE_TAG = "RoofZone"
+local hiddenRoofs = {} -- [zone] = true while faded out
+local roofParts = {} -- [zone] = { parts }
 
-local function setRoof(part, hidden)
-	if roofHidden[part] == hidden then
+local function partsOf(zone)
+	local list = roofParts[zone]
+	if not list then
+		list = {}
+		for _, descendant in ipairs(zone.Parent:GetDescendants()) do
+			if descendant:IsA("BasePart") and descendant ~= zone then
+				table.insert(list, descendant)
+			end
+		end
+		roofParts[zone] = list
+	end
+	return list
+end
+
+local function setRoof(zone, hidden)
+	if (hiddenRoofs[zone] == true) == hidden then
 		return
 	end
-	roofHidden[part] = hidden
-	TweenService:Create(part, TweenInfo.new(0.3), { LocalTransparencyModifier = hidden and 1 or 0 }):Play()
+	hiddenRoofs[zone] = hidden or nil
+	for _, part in ipairs(partsOf(zone)) do
+		if part.Parent then
+			TweenService:Create(part, TweenInfo.new(0.3), { LocalTransparencyModifier = hidden and 1 or 0 }):Play()
+		end
+	end
 end
 
 task.spawn(function()
@@ -44,11 +64,19 @@ task.spawn(function()
 		local hrp = character and character:FindFirstChild("HumanoidRootPart")
 		if hrp then
 			local position = hrp.CFrame.Position
-			for _, roof in ipairs(CollectionService:GetTagged(ROOF_TAG)) do
-				local localPosition = roof.CFrame:PointToObjectSpace(position)
-				local half = roof.Size / 2
-				local under = math.abs(localPosition.X) <= half.X and math.abs(localPosition.Z) <= half.Z and localPosition.Y < 0 and localPosition.Y > -60
-				setRoof(roof, under)
+			for _, zone in ipairs(CollectionService:GetTagged(ZONE_TAG)) do
+				if zone.Parent then
+					local p = zone.CFrame:PointToObjectSpace(position)
+					local half = zone.Size / 2
+					setRoof(zone, math.abs(p.X) <= half.X and math.abs(p.Y) <= half.Y and math.abs(p.Z) <= half.Z)
+				end
+			end
+			-- forget zones whose house was rebuilt
+			for zone in pairs(roofParts) do
+				if not zone.Parent then
+					roofParts[zone] = nil
+					hiddenRoofs[zone] = nil
+				end
 			end
 		end
 	end

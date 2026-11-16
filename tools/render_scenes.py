@@ -58,6 +58,12 @@ def part_faces(part):
 
     shape = part["shape"]
     faces = []
+    if shape == "Wedge":
+        # Roblox WedgePart: full bottom, full back (+Z) face, slope down to the front
+        c = [(-sx, -sy, -sz), (sx, -sy, -sz), (sx, -sy, sz), (-sx, -sy, sz), (-sx, sy, sz), (sx, sy, sz)]
+        for idx in ((0, 1, 2, 3), (3, 2, 5, 4), (0, 4, 5, 1), (0, 3, 4), (1, 5, 2)):
+            faces.append([world(c[i]) for i in idx])
+        return faces
     if shape == "Cylinder":
         # a Roblox cylinder's axis is its local X
         n = 14
@@ -87,6 +93,29 @@ def part_faces(part):
     return faces
 
 
+def terrain_parts(scene):
+    """Turns recorded Terrain:Fill* calls into renderable pseudo-parts."""
+    colors = scene.get("terrainColors", {})
+    default = {"Water": [0.16, 0.66, 0.82], "Grass": [0.41, 0.75, 0.31], "Sand": [0.94, 0.86, 0.65]}
+    out = []
+    for op in scene.get("terrain", []):
+        mat = op["material"]
+        color = colors.get(mat) or default.get(mat) or [0.5, 0.5, 0.5]
+        alpha = 0.75 if mat == "Water" else 1
+        if op["op"] == "block":
+            out.append({"name": "Terrain" + mat, "cf": op["cf"], "size": op["size"], "color": color, "shape": "Block", "alpha": alpha})
+        elif op["op"] == "ball":
+            c = op["center"]
+            d = op["radius"] * 2
+            out.append({"name": "Terrain" + mat, "cf": [c[0], c[1], c[2], 1, 0, 0, 0, 1, 0, 0, 0, 1], "size": [d, d, d], "color": color, "shape": "Ball", "alpha": alpha})
+        elif op["op"] == "cylinder":
+            x, y, z = op["cf"][0:3]
+            d = op["radius"] * 2
+            # terrain cylinders stand along Y; a part cylinder's axis is X
+            out.append({"name": "Terrain" + mat, "cf": [x, y, z, 0, -1, 0, 1, 0, 0, 0, 0, 1], "size": [op["height"], d, d], "color": color, "shape": "Cylinder", "alpha": alpha})
+    return out
+
+
 def render(parts, yaw, pitch, size, pad=18, zoom=None, label=None, bounds=None):
     m = view_matrix(yaw, pitch)
     polys = []
@@ -105,7 +134,7 @@ def render(parts, yaw, pitch, size, pad=18, zoom=None, label=None, bounds=None):
             depth = sum(p[2] for p in pts) / len(pts)
             # The painter's algorithm cannot order a thin detail against the
             # big surface it sits on, so thin parts get a small nudge forward.
-            if min(part["size"]) < 0.12:
+            if min(part["size"]) < 0.1:
                 depth += 0.9
             polys.append((depth, [(p[0], p[1]) for p in pts], color, part.get("alpha", 1)))
     if not polys:
@@ -178,17 +207,27 @@ def main():
     images = [render(s["parts"], size=(250, 230), label=s["label"], yaw=205, pitch=24) for s in groups["furniture"]]
     sheet(images, 4, "Furniture samples").save(os.path.join(OUT, "preview-furniture.png"))
 
-    world = groups["world"][0]["parts"]
+    world = terrain_parts(groups["world"][0]) + groups["world"][0]["parts"]
     render(world, yaw=180, pitch=90, size=(900, 1100), label="Map - top down (north = clothing store, south = houses)").save(os.path.join(OUT, "preview-map.png"))
     render(world, yaw=215, pitch=38, size=(1300, 760)).save(os.path.join(OUT, "preview-map-angle.png"))
 
     images = []
     for s in groups["house"]:
-        no_roof = [p for p in s["parts"] if "Roof" not in p["name"] and p["name"] != "Glow"]
+        roofish = ("Roof", "Ridge", "Chimney", "Gable", "Fascia", "Attic", "Parapet", "Skylight", "AC")
+        no_roof = [p for p in s["parts"] if not p["name"].startswith(roofish)]
         images.append(render(no_roof, yaw=180, pitch=90, size=(520, 520), zoom=7.6, label=s["label"] + " - inside, top down"))
         s["parts"] = [p for p in s["parts"] if p["name"] != "RoofGlow"] + [p for p in s["parts"] if p["name"] == "RoofGlow"]
         images.append(render(s["parts"], yaw=235, pitch=28, size=(520, 520), zoom=6.2, label=s["label"] + " - outside"))
     sheet(images, 2, "The house grows with Brady (same scale)").save(os.path.join(OUT, "preview-house.png"))
+
+    images = []
+    for s in groups.get("styles", []):
+        images.append(render(s["parts"], yaw=235, pitch=24, size=(460, 400), label=s["label"]))
+    if images:
+        sheet(images, 3, "House styles").save(os.path.join(OUT, "preview-house-styles.png"))
+    # close-up of the plaza / spawn area with terrain
+    near = [p for p in world if abs(p["cf"][0]) < 95 and -110 < p["cf"][2] < 100 and max(p["size"]) < 300]
+    render(near, yaw=200, pitch=32, size=(1300, 760), label="Plaza close-up").save(os.path.join(OUT, "preview-plaza.png"))
     print("wrote previews to", OUT)
 
 

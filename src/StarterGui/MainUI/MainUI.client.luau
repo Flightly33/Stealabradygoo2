@@ -34,6 +34,7 @@ local top = UI.box(gui, { Name = "Top", Size = UDim2.fromOffset(560, 46), Positi
 UI.autoScale(top, "hud")
 
 local coinPill = UI.frame(top, { Name = "Coins", Size = UDim2.fromOffset(190, 44), Color = C.bg, Corner = 22, Stroke = 3, StrokeColor = C.goo })
+UI.gradient(coinPill, 0.7)
 local coinIcon = UI.frame(coinPill, { Name = "Icon", Size = UDim2.fromOffset(34, 34), Position = UDim2.fromOffset(5, 5), Color = C.goo, Corner = 17 })
 UI.stroke(coinIcon, 2, C.gooDark)
 UI.label(coinIcon, "G", { TextSize = 22, Color = C.dark })
@@ -80,6 +81,7 @@ for index, meter in ipairs(METERS) do
 	})
 	UI.corner(chip, 14)
 	UI.stroke(chip, 3, C.dark)
+	UI.gradient(chip, 0.7)
 	UI.label(chip, meter.icon, { Size = UDim2.fromOffset(30, 44), Position = UDim2.fromOffset(2, 0), TextSize = 22 })
 	local bar = UI.bar(chip, { Size = UDim2.fromOffset(44, 16), Position = UDim2.fromOffset(34, 14), Color = meter.color, Corner = 6, TextSize = 11 })
 	meterBars[meter.key] = bar
@@ -314,6 +316,7 @@ local ticker = UI.button(strip, "", { Name = "FashionTicker", Size = UDim2.fromO
 end)
 
 local banner = UI.frame(strip, { Name = "EventBanner", Size = UDim2.fromOffset(560, 100), Position = UDim2.fromOffset(0, 136), Color = C.bg, Corner = 16, Stroke = 4, StrokeColor = C.gold, Visible = false })
+UI.gradient(banner, 0.7)
 local bannerTitle = UI.label(banner, "", { Name = "Title", Size = UDim2.new(1, -150, 0, 30), Position = UDim2.fromOffset(12, 6), TextSize = 22, Color = C.gold, AlignX = Enum.TextXAlignment.Left, Outline = 2 })
 local bannerDesc = UI.label(banner, "", { Name = "Desc", Size = UDim2.new(1, -150, 0, 36), Position = UDim2.fromOffset(12, 36), TextSize = 14, Font = UI.BodyFont, Color = C.sub, AlignX = Enum.TextXAlignment.Left })
 local bannerTimer = UI.bar(banner, { Name = "Timer", Size = UDim2.new(1, -24, 0, 14), Position = UDim2.new(0, 12, 1, -22), Color = C.gold, Corner = 6, TextSize = 11 })

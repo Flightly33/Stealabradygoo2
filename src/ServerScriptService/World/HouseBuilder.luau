@@ -19,7 +19,9 @@ local Modules = ReplicatedStorage.Modules
 local AgeSystem = require(Modules.AgeSystem)
 local ClothingSystem = require(Modules.ClothingSystem)
 local HouseSystem = require(Modules.HouseSystem)
+local Config = require(Modules.Config)
 local PartUtil = require(Modules.Builders.PartUtil)
+local Environment = require(script.Parent.Environment)
 
 local HouseBuilder = {}
 
@@ -33,15 +35,42 @@ local GOLD = rgb(255, 205, 60)
 local GOO = rgb(126, 232, 74)
 local DARK = rgb(34, 34, 40)
 
-HouseBuilder.RoofTag = "HouseRoof"
+HouseBuilder.RoofZoneTag = "RoofZone"
 HouseBuilder.OwnerPromptTag = "OwnerPrompt"
 
+-- One style per two stages. inside = interior plaster colour, base = the
+-- baseboard / crown moulding colour, roofType = "gable" or "flat".
 local STYLES = {
-	{ wall = rgb(150, 110, 70), wallMat = "WoodPlanks", floor = rgb(196, 164, 120), floorMat = "WoodPlanks", trim = rgb(104, 74, 46), roof = rgb(124, 62, 50), height = 11, accent = GOO },
-	{ wall = rgb(188, 92, 72), wallMat = "Brick", floor = rgb(216, 192, 152), floorMat = "WoodPlanks", trim = WHITE, roof = rgb(88, 90, 100), height = 12, accent = rgb(255, 200, 80) },
-	{ wall = rgb(236, 236, 238), wallMat = "Concrete", floor = rgb(204, 206, 212), floorMat = "SmoothPlastic", trim = rgb(60, 190, 190), roof = rgb(58, 70, 92), height = 13, accent = rgb(60, 190, 190) },
-	{ wall = rgb(62, 64, 72), wallMat = "Slate", floor = rgb(44, 44, 50), floorMat = "Marble", trim = rgb(232, 66, 78), roof = rgb(28, 28, 32), height = 15, accent = rgb(232, 66, 78) },
-	{ wall = rgb(246, 241, 232), wallMat = "Marble", floor = rgb(250, 250, 250), floorMat = "Marble", trim = GOLD, roof = rgb(40, 40, 52), height = 17, accent = GOLD },
+	{ -- Starter Shack: wooden cabin, shingle roof
+		wall = rgb(150, 108, 70), wallMat = "WoodPlanks", inside = rgb(236, 222, 196), base = rgb(110, 78, 50),
+		floor = rgb(184, 146, 102), floorMat = "WoodPlanks", trim = rgb(242, 234, 216), door = rgb(170, 64, 52),
+		roof = rgb(150, 72, 58), roofMat = "RoofShingles", roofType = "gable", pitch = 0.6, chimney = true, flowerBoxes = true,
+		height = 11, accent = GOO,
+	},
+	{ -- Cozy Crib: red brick, clay tile roof
+		wall = rgb(186, 96, 74), wallMat = "Brick", inside = rgb(244, 234, 214), base = rgb(250, 248, 242),
+		floor = rgb(206, 172, 128), floorMat = "WoodPlanks", trim = WHITE, door = rgb(40, 74, 120),
+		roof = rgb(180, 86, 58), roofMat = "ClayRoofTiles", roofType = "gable", pitch = 0.5, chimney = true, flowerBoxes = true,
+		height = 12, accent = rgb(255, 200, 80),
+	},
+	{ -- Drip Den: white modern plaster, flat roof, teal accents
+		wall = rgb(238, 238, 240), wallMat = "Plaster", inside = rgb(246, 246, 248), base = rgb(60, 190, 190),
+		floor = rgb(200, 200, 206), floorMat = "Concrete", trim = rgb(60, 190, 190), door = rgb(60, 190, 190),
+		roof = rgb(150, 152, 160), roofMat = "Concrete", roofType = "flat",
+		height = 13, accent = rgb(60, 190, 190),
+	},
+	{ -- Fashion Loft: dark basalt, flat roof with skylight, red accents
+		wall = rgb(62, 62, 70), wallMat = "Basalt", inside = rgb(222, 216, 210), base = rgb(30, 30, 34),
+		floor = rgb(60, 58, 64), floorMat = "Marble", trim = rgb(232, 66, 78), door = rgb(232, 66, 78),
+		roof = rgb(46, 46, 52), roofMat = "Slate", roofType = "flat",
+		height = 15, accent = rgb(232, 66, 78),
+	},
+	{ -- Archive Mansion: marble, dark shingle roof, gold everything
+		wall = rgb(244, 238, 228), wallMat = "Marble", inside = rgb(250, 246, 238), base = GOLD,
+		floor = rgb(248, 248, 250), floorMat = "Marble", trim = GOLD, door = rgb(30, 30, 36),
+		roof = rgb(56, 60, 76), roofMat = "RoofShingles", roofType = "gable", pitch = 0.42, flowerBoxes = true,
+		height = 17, accent = GOLD,
+	},
 }
 
 -- opts = { age, ownerName, ownerUserId, showcase = { item, ... }, trophies = { achievements, wins } }
@@ -77,6 +106,7 @@ function HouseBuilder.build(parent, plotCFrame, opts)
 			reflectance = o.reflectance,
 			collide = o.collide,
 			shadow = o.shadow,
+			class = o.class,
 		})
 	end
 
@@ -96,31 +126,79 @@ function HouseBuilder.build(parent, plotCFrame, opts)
 	local floor = p("Floor", v3(size + 2, 1, size + 2), v3(0, -0.5, 0), style.floor, { material = style.floorMat })
 	floor:SetAttribute("IsFloor", true)
 	p("Step", v3(HouseSystem.DoorWidth + 1, 0.5, 2.5), v3(0, -0.75, h + 2.2), style.trim, { material = "Concrete" })
+	p("Foundation", v3(size + 2.6, 0.8, size + 2.6), v3(0, -0.6, 0), rgb(150, 146, 140), { material = "Concrete", shadow = false })
 
-	-- WALLS (with a door gap and windows) -------------------------------
+	-- terrain under the house + a paved walkway out to the street
+	local plotHalf = Config.PlotSize / 2
+	Environment.paint(plotCFrame, v3(Config.PlotSize - 4, 4, Config.PlotSize - 4), Enum.Material.Grass)
+	Environment.paint(plotCFrame, v3(size + 6, 4, size + 6), Enum.Material.Ground)
+	local walkStart, walkEnd = h + 3.5, plotHalf + 2
+	if walkEnd > walkStart then
+		local walkMid, walkLen = (walkStart + walkEnd) / 2, walkEnd - walkStart
+		p("Walkway", v3(5, 0.25, walkLen), v3(0, -0.87, walkMid), rgb(200, 192, 180), { material = "Pavement", shadow = false })
+		Environment.paint(plotCFrame * CFrame.new(0, 0, walkMid), v3(6, 4, walkLen), Enum.Material.Pavement)
+	end
+
+	-- WALLS (door gap, framed windows, interior lining + trim) ------------
+	-- Each wall is built from segments around its openings. Every segment
+	-- gets a thin interior lining (so outside can be brick while inside is
+	-- cosy plaster), a baseboard and crown moulding.
 	local function wall(alongX, fixed, length, openings)
+		local outward = fixed > 0 and 1 or -1
 		local cursor = -length / 2
-		local function seg(name, c0, c1, y0, y1, color, o)
+		local function at(c, y, depth)
+			return alongX and v3(c, y, fixed + depth * outward) or v3(fixed + depth * outward, y, c)
+		end
+		local function span(width, height, depth)
+			return alongX and v3(width, height, depth) or v3(depth, height, width)
+		end
+		local function seg(c0, c1, y0, y1)
 			if c1 - c0 < 0.05 or y1 - y0 < 0.05 then
 				return
 			end
-			local mid, midY = (c0 + c1) / 2, (y0 + y1) / 2
-			local partSize = alongX and v3(c1 - c0, y1 - y0, 1) or v3(1, y1 - y0, c1 - c0)
-			local position = alongX and v3(mid, midY, fixed) or v3(fixed, midY, mid)
-			p(name, partSize, position, color, o)
+			local mid, midY, width = (c0 + c1) / 2, (y0 + y1) / 2, c1 - c0
+			p("Wall", span(width, y1 - y0, 1), at(mid, midY, 0), style.wall, { material = style.wallMat })
+			-- interior lining (inside face of the wall)
+			local liningBottom = math.max(y0, 0)
+			if y1 - liningBottom > 0.1 then
+				p("WallLining", span(width, y1 - liningBottom, 0.12), at(mid, (liningBottom + y1) / 2, -0.56), style.inside, { material = "Plaster", collide = false, shadow = false })
+			end
+			if y0 <= 0 and y1 > 1 then
+				p("Baseboard", span(width, 0.7, 0.24), at(mid, 0.35, -0.68), style.base, { material = "Wood", collide = false, shadow = false })
+			end
+			if y1 >= H - 0.01 then
+				p("Crown", span(width, 0.45, 0.3), at(mid, H - 0.3, -0.7), style.base, { material = "Wood", collide = false, shadow = false })
+			end
 		end
-		local wallOpts = { material = style.wallMat }
 		for _, opening in ipairs(openings) do
 			local c0, c1 = opening.center - opening.width / 2, opening.center + opening.width / 2
-			seg("Wall", cursor, c0, -1, H, style.wall, wallOpts)
-			seg("Wall", c0, c1, opening.top, H, style.wall, wallOpts)
-			seg("Wall", c0, c1, -1, opening.bottom, style.wall, wallOpts)
+			seg(cursor, c0, -1, H)
+			seg(c0, c1, opening.top, H)
+			seg(c0, c1, -1, opening.bottom)
 			if opening.glass then
-				seg("Window", c0, c1, opening.bottom, opening.top, rgb(170, 220, 255), { material = "Glass", transparency = 0.6, shadow = false })
+				local midY = (opening.bottom + opening.top) / 2
+				local glass = p("Window", span(opening.width, opening.top - opening.bottom, 0.25), at(opening.center, midY, 0), rgb(176, 214, 245), { material = "Glass", transparency = 0.55, shadow = false })
+				CollectionService:AddTag(glass, Environment.NightWindowTag)
+				-- frame, sill and a cross mullion on the outside
+				local frameColor = style.trim
+				p("WindowFrame", span(opening.width + 0.8, 0.4, 0.5), at(opening.center, opening.top + 0.2, 0.3), frameColor, { collide = false, shadow = false })
+				p("WindowSill", span(opening.width + 1.4, 0.35, 1), at(opening.center, opening.bottom - 0.15, 0.5), frameColor, { collide = false })
+				p("WindowFrame", span(0.4, opening.top - opening.bottom, 0.5), at(c0 - 0.2, midY, 0.3), frameColor, { collide = false, shadow = false })
+				p("WindowFrame", span(0.4, opening.top - opening.bottom, 0.5), at(c1 + 0.2, midY, 0.3), frameColor, { collide = false, shadow = false })
+				p("Mullion", span(0.25, opening.top - opening.bottom, 0.35), at(opening.center, midY, 0.1), frameColor, { collide = false, shadow = false })
+				p("Mullion", span(opening.width, 0.25, 0.35), at(opening.center, midY, 0.1), frameColor, { collide = false, shadow = false })
+				if style.flowerBoxes then
+					p("FlowerBox", span(opening.width + 0.6, 0.9, 1.2), at(opening.center, opening.bottom - 0.9, 0.9), style.trim, { material = "Wood", collide = false })
+					local count = math.max(2, math.floor(opening.width / 1.5))
+					for i = 1, count do
+						local c = c0 + (i - 0.5) * opening.width / count
+						p("BoxFlower", v3(0.8, 0.8, 0.8), at(c, opening.bottom - 0.2, 0.9), i % 2 == 0 and rgb(255, 110, 180) or rgb(255, 220, 80), { shape = "Ball", collide = false, shadow = false })
+					end
+				end
 			end
 			cursor = c1
 		end
-		seg("Wall", cursor, length / 2, -1, H, style.wall, wallOpts)
+		seg(cursor, length / 2, -1, H)
 	end
 
 	local sideWindows
@@ -132,40 +210,131 @@ function HouseBuilder.build(parent, plotCFrame, opts)
 	else
 		sideWindows = { { center = 0, width = 6, bottom = 3.5, top = 8.5, glass = true } }
 	end
-	wall(true, h + 0.5, size + 2, { { center = 0, width = HouseSystem.DoorWidth, bottom = 0, top = 9 } }) -- front
+	local frontOpenings = { { center = 0, width = HouseSystem.DoorWidth, bottom = 0, top = 9 } }
+	if size >= 36 then
+		local x = HouseSystem.DoorWidth / 2 + 5
+		frontOpenings = {
+			{ center = -x, width = 4.5, bottom = 3.5, top = 8, glass = true },
+			{ center = 0, width = HouseSystem.DoorWidth, bottom = 0, top = 9 },
+			{ center = x, width = 4.5, bottom = 3.5, top = 8, glass = true },
+		}
+	end
+	wall(true, h + 0.5, size + 2, frontOpenings) -- front
 	wall(true, -h - 0.5, size + 2, {}) -- back
 	wall(false, -h - 0.5, size, sideWindows) -- left
 	wall(false, h + 0.5, size, sideWindows) -- right
 
-	-- Trim along the top of the walls + corner posts.
+	-- corner posts
 	for _, sx in ipairs({ -1, 1 }) do
 		for _, sz in ipairs({ -1, 1 }) do
-			p("Post", v3(1.4, H + 1.4, 1.4), v3(sx * (h + 0.5), (H - 1) / 2 + 0.2, sz * (h + 0.5)), style.trim, { material = tier >= 5 and "Marble" or nil })
+			p("Post", v3(1.4, H + 1.4, 1.4), v3(sx * (h + 0.5), (H - 1) / 2 + 0.2, sz * (h + 0.5)), style.trim, { material = tier >= 5 and "Marble" or "Wood" })
 		end
 	end
-	p("DoorFrame", v3(HouseSystem.DoorWidth + 1.2, 0.6, 1.3), v3(0, 9.3, h + 0.5), style.trim)
 
-	-- ROOF: no collisions, so it never traps the camera. Clients hide it
-	-- locally while you are inside (see WorldClient).
-	local roof = p("Roof", v3(size + 5, 1, size + 5), v3(0, H + 0.5, 0), style.roof, { collide = false, material = tier <= 2 and "Slate" or nil })
-	CollectionService:AddTag(roof, HouseBuilder.RoofTag)
-	local roofTrim = p("RoofTrim", v3(size + 5.6, 0.5, size + 5.6), v3(0, H - 0.1, 0), style.trim, { collide = false })
-	CollectionService:AddTag(roofTrim, HouseBuilder.RoofTag)
+	-- FRONT DOOR: frame, an open door panel, porch light, mat and plants
+	local door = HouseSystem.DoorWidth
+	p("DoorFrame", v3(door + 1.2, 0.6, 1.3), v3(0, 9.3, h + 0.5), style.trim)
+	p("DoorJamb", v3(0.5, 9, 1.3), v3(-door / 2 - 0.25, 4.5, h + 0.5), style.trim, { collide = false })
+	p("DoorJamb", v3(0.5, 9, 1.3), v3(door / 2 + 0.25, 4.5, h + 0.5), style.trim, { collide = false })
+	local hinge = CFrame.new(-door / 2, 0, h + 1.1) * CFrame.Angles(0, rad(100), 0)
+	p("Door", v3(door - 0.6, 8.6, 0.3), (hinge * CFrame.new((door - 0.6) / 2, 4.3, 0)).Position, style.door, { rot = CFrame.Angles(0, rad(100), 0), material = "Wood", collide = false })
+	p("DoorKnob", v3(0.35, 0.35, 0.35), (hinge * CFrame.new(door - 1.4, 4.2, 0.25)).Position, GOLD, { shape = "Ball", collide = false, shadow = false })
+	p("DoorMat", v3(4, 0.08, 2), v3(0, -0.46, h + 2.4), rgb(120, 84, 60), { material = "Carpet", collide = false, shadow = false })
+	local lantern = p("PorchLantern", v3(0.8, 1.2, 0.8), v3(door / 2 + 1.4, 7.2, h + 1.4), style.base, { material = "Metal", collide = false })
+	local bulb = p("PorchBulb", v3(0.55, 0.7, 0.55), v3(door / 2 + 1.4, 7.1, h + 1.4), rgb(255, 228, 170), { material = "Neon", collide = false, shadow = false })
+	local porchLight = Instance.new("PointLight")
+	porchLight.Range = 16
+	porchLight.Brightness = 1.6
+	porchLight.Color = rgb(255, 210, 150)
+	porchLight.Shadows = false
+	porchLight.Enabled = false
+	porchLight.Parent = bulb
+	CollectionService:AddTag(porchLight, Environment.NightLightTag)
+	local _ = lantern
+	for _, sx in ipairs({ -1, 1 }) do
+		local x = sx * (door / 2 + 2.6)
+		p("Planter", v3(1.6, 1.8, 1.8), v3(x, 0.4, h + 2.6), rgb(196, 110, 80), { shape = "Cylinder", rot = UP, material = "Brick" })
+		p("PlanterLeaves", v3(2.2, 2.2, 2.2), v3(x, 2, h + 2.6), rgb(82, 168, 72), { shape = "Ball", material = "LeafyGrass", collide = false, shadow = false })
+	end
+
+	-- ROOF (no collisions so it never traps the camera; it fades out on the
+	-- client while you are inside - see the RoofZone part below)
+	local roofParts = {}
+	local function roofPart(name, partSize, position, color, o)
+		local part = p(name, partSize, position, color, o)
+		table.insert(roofParts, part)
+		return part
+	end
+	local eave = h + 3 -- half-width of the roof including the overhang
+	if style.roofType == "gable" then
+		local rise = eave * style.pitch
+		local angle = math.atan2(rise, eave)
+		local slope = math.sqrt(eave * eave + rise * rise) + 0.6
+		for _, side in ipairs({ -1, 1 }) do
+			-- the two roof planes, sloping down to the front and the back
+			local plane = CFrame.new(0, H + rise / 2, side * eave / 2) * CFrame.Angles(side * angle, 0, 0) * CFrame.new(0, 0.45, 0)
+			roofPart("RoofPlane", v3(size + 6, 0.9, slope), plane.Position, style.roof, { rot = plane - plane.Position, material = style.roofMat, collide = false })
+			-- fascia board along each eave
+			local fascia = plane * CFrame.new(0, -0.3, side * slope / 2)
+			roofPart("Fascia", v3(size + 6.2, 0.7, 0.4), fascia.Position, style.trim, { rot = fascia - fascia.Position, collide = false, shadow = false })
+		end
+		-- gable triangles above the side walls (two wedges each)
+		local wallHalf = h + 1
+		local gableRise = rise * wallHalf / eave
+		for _, sx in ipairs({ -1, 1 }) do
+			local x = sx * (h + 0.5)
+			roofPart("Gable", v3(1, gableRise, wallHalf), v3(x, H + gableRise / 2, wallHalf / 2), style.wall, { class = "WedgePart", rot = CFrame.Angles(0, math.pi, 0), material = style.wallMat, collide = false })
+			roofPart("Gable", v3(1, gableRise, wallHalf), v3(x, H + gableRise / 2, -wallHalf / 2), style.wall, { class = "WedgePart", material = style.wallMat, collide = false })
+			-- a little round attic window
+			local attic = roofPart("AtticWindow", v3(0.4, 2.2, 2.2), v3(x + sx * 0.4, H + gableRise * 0.38, 0), rgb(176, 214, 245), { shape = "Cylinder", material = "Glass", collide = false, shadow = false })
+			CollectionService:AddTag(attic, Environment.NightWindowTag)
+			roofPart("AtticRim", v3(0.35, 2.8, 2.8), v3(x + sx * 0.3, H + gableRise * 0.38, 0), style.trim, { shape = "Cylinder", collide = false, shadow = false })
+		end
+		roofPart("RidgeCap", v3(size + 6.4, 0.6, 1.4), v3(0, H + rise + 0.45, 0), PartUtil.shade(style.roof, 0.8), { material = style.roofMat, collide = false })
+		if style.chimney then
+			local cx, cz = h * 0.45, -eave * 0.42
+			local roofY = H + rise * (1 - math.abs(cz) / eave)
+			roofPart("Chimney", v3(2.8, rise * 0.5 + 4, 2.8), v3(cx, roofY + 1, cz), rgb(170, 84, 64), { material = "Brick", collide = false })
+			roofPart("ChimneyCap", v3(3.4, 0.5, 3.4), v3(cx, roofY + rise * 0.25 + 3.25, cz), rgb(90, 90, 96), { material = "Concrete", collide = false, shadow = false })
+		end
+	else
+		-- flat modern roof with a parapet, accent light strip and rooftop bits
+		roofPart("Roof", v3(size + 3, 1, size + 3), v3(0, H + 0.5, 0), style.roof, { material = style.roofMat, collide = false })
+		local edge = size / 2 + 1.25
+		for _, sz in ipairs({ -1, 1 }) do
+			roofPart("Parapet", v3(size + 3, 1.8, 0.5), v3(0, H + 1.9, sz * edge), style.wall, { material = style.wallMat, collide = false })
+			roofPart("Parapet", v3(0.5, 1.8, size + 3), v3(sz * edge, H + 1.9, 0), style.wall, { material = style.wallMat, collide = false })
+			roofPart("RoofStrip", v3(size + 3.2, 0.25, 0.6), v3(0, H + 2.9, sz * edge), style.accent, { material = "Neon", collide = false, shadow = false })
+			roofPart("RoofStrip", v3(0.6, 0.25, size + 3.2), v3(sz * edge, H + 2.9, 0), style.accent, { material = "Neon", collide = false, shadow = false })
+		end
+		if tier == 4 then
+			local sky = roofPart("Skylight", v3(size * 0.35, 0.4, size * 0.35), v3(0, H + 1.1, 0), rgb(160, 200, 240), { material = "Glass", collide = false, shadow = false })
+			sky.Transparency = 0.4
+		else
+			roofPart("ACUnit", v3(4, 2.6, 3), v3(-size * 0.25, H + 2.3, -size * 0.2), rgb(190, 192, 198), { material = "Metal", collide = false })
+			roofPart("ACFan", v3(0.3, 2.2, 2.2), v3(-size * 0.25, H + 3.65, -size * 0.2), rgb(70, 72, 80), { shape = "Cylinder", rot = UP, material = "Metal", collide = false, shadow = false })
+		end
+	end
 	if tier >= 5 then
-		-- mansion pillars + glow
+		-- mansion pillars + a glowing gold roof edge
 		for _, x in ipairs({ -6.5, 6.5 }) do
 			p("Pillar", v3(H, 1.6, 1.6), v3(x, H / 2 - 0.5, h + 2.6), WHITE, { shape = "Cylinder", rot = UP, material = "Marble" })
 			p("PillarCap", v3(2.4, 0.6, 2.4), v3(x, H - 0.4, h + 2.6), GOLD, { material = "Glass", reflectance = 0.3 })
+			p("PillarBase", v3(2.4, 0.6, 2.4), v3(x, 0.3, h + 2.6), WHITE, { material = "Marble" })
 		end
-		-- a thin glowing gold edge around the roof (not a whole glowing slab)
-		local edge = size / 2 + 2.7
-		for _, side in ipairs({ -1, 1 }) do
-			local stripA = p("RoofGlow", v3(size + 5.8, 0.3, 0.5), v3(0, H + 1.1, side * edge), GOLD, { material = "Neon", collide = false, shadow = false })
-			local stripB = p("RoofGlow", v3(0.5, 0.3, size + 5.8), v3(side * edge, H + 1.1, 0), GOLD, { material = "Neon", collide = false, shadow = false })
-			CollectionService:AddTag(stripA, HouseBuilder.RoofTag)
-			CollectionService:AddTag(stripB, HouseBuilder.RoofTag)
-		end
+		p("Portico", v3(16, 0.8, 4.5), v3(0, H - 0.1, h + 2.6), WHITE, { material = "Marble", collide = false })
+		roofPart("RoofGlow", v3(size + 6.3, 0.25, 0.4), v3(0, H + 0.1, eave), GOLD, { material = "Neon", collide = false, shadow = false })
+		roofPart("RoofGlow", v3(size + 6.3, 0.25, 0.4), v3(0, H + 0.1, -eave), GOLD, { material = "Neon", collide = false, shadow = false })
 	end
+	local roofModel = Instance.new("Model")
+	roofModel.Name = "Roof"
+	for _, part in ipairs(roofParts) do
+		part.Parent = roofModel
+	end
+	local zone = p("RoofZone", v3(size + 1, H + 2, size + 1), v3(0, H / 2, 0), WHITE, { transparency = 1, collide = false, shadow = false })
+	zone.Parent = roofModel
+	CollectionService:AddTag(zone, HouseBuilder.RoofZoneTag)
+	roofModel.Parent = model
 
 	-- Sign over the door.
 	local sign = p("Sign", v3(math.min(16, size * 0.5), 2.2, 0.4), v3(0, 10.9, h + 1.1), DARK, { collide = false })

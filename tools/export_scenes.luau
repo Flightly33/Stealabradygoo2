@@ -27,6 +27,8 @@ local function dump(root)
 			local shape = "Block"
 			if d.ClassName == "Part" then
 				shape = d.Shape.Name
+			elseif d.ClassName == "WedgePart" then
+				shape = "Wedge"
 			end
 			table.insert(parts, {
 				name = d.Name,
@@ -102,13 +104,24 @@ H.startServer()
 local player = H.addPlayer("Brady Fan", { ["local"] = true })
 H.advance(2)
 local Age = H.server.require(H.ServerScriptService.Services.AgeServer)
-table.insert(scenes, { group = "world", label = "map", parts = dump(H.Workspace.Map), order = 1 })
+table.insert(scenes, { group = "world", label = "map", parts = dump(H.Workspace.Map), terrain = H.terrainOps, terrainColors = H.terrainColors, order = 1 })
 table.insert(scenes, { group = "house", label = "Starter Shack (age 1)", parts = dump(H.Workspace.Houses), order = 1 })
 local thread = H.task.spawn(function()
 	Age.addXP(player, AgeSystem.MaxXP, { raw = true })
 end)
 H.advance(10)
 table.insert(scenes, { group = "house", label = "Archive Mansion (age 25)", parts = dump(H.Workspace.Houses), order = 2 })
+-- the house at every look (stage 2 = Cozy Crib, 3 = Drip Den, 4 = Fashion Loft)
+local AgeServer = Age
+for _, target in ipairs({ { 5, "Cozy Crib (age 5)" }, { 10, "Drip Den (age 10)" }, { 16, "Fashion Loft (age 16)" } }) do
+	local data = H.server.require(H.ServerScriptService.Services.DataServer).get(player)
+	data.ageXP = AgeSystem.totalXPForAge(target[1])
+	data.age = target[1]
+	H.server.require(H.ServerScriptService.Services.HouseServer).upgrade(player)
+	H.advance(1)
+	table.insert(scenes, { group = "styles", label = target[2], parts = dump(H.Workspace.Houses), order = target[1] })
+end
+local _ = AgeServer
 
 fs.writeFile("build/scenes.json", serde.encode("json", scenes))
 print("wrote build/scenes.json with " .. #scenes .. " scenes; errors: " .. #H.errors)
