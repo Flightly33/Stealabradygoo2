@@ -23,23 +23,23 @@ TimeOfDay.Length = Config.DayLength
 
 -- Lighting palettes LightingClient blends between.
 TimeOfDay.Day = {
-	brightness = 2.6,
+	brightness = 1.7,
 	ambient = rgb(92, 94, 112),
 	outdoor = rgb(142, 142, 158),
 	tint = rgb(255, 250, 240),
 	atmosphere = rgb(199, 214, 240),
 	decay = rgb(110, 132, 178),
-	exposure = 0.1,
+	exposure = -0.2,
 	saturation = 0.2,
 }
 TimeOfDay.Night = {
-	brightness = 1.1,
+	brightness = 0.8,
 	ambient = rgb(70, 78, 122),
 	outdoor = rgb(84, 92, 140),
 	tint = rgb(196, 210, 255),
 	atmosphere = rgb(70, 82, 130),
 	decay = rgb(40, 46, 86),
-	exposure = 0.45,
+	exposure = 0.2,
 	saturation = 0.05,
 }
 -- Golden-hour tint blended in around sunrise / sunset.

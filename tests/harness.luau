@@ -1033,6 +1033,8 @@ local function makeGameProxy(services)
 	proxy.JobId = "test-server-1"
 	proxy.PlaceId = 1
 	proxy.GameId = 1
+	proxy.CreatorId = 1
+	proxy.CreatorType = roblox.Enum.CreatorType.User
 	proxy.Loaded = Signal.new("Loaded")
 	function proxy:GetService(name)
 		local service = services[name]

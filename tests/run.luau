@@ -1780,16 +1780,16 @@ local function advanceCoarse(seconds, step)
 	H.advance(0.5)
 end
 
-test("client boots: all 18 LocalScripts run and receive the profile", function()
+test("client boots: all 19 LocalScripts run and receive the profile", function()
 	local started = H.startClient()
-	eq(#started, 18, "LocalScripts started")
+	eq(#started, 19, "LocalScripts started")
 	H.advance(4)
 	PlayerGui = player.PlayerGui
 	State = H.client.require(RS.Client.ClientState)
 	check(State.data, "client never received its data")
 	eq(State.data.coins, data.coins)
 	check(State.fashion, "client never received the fashion show state")
-	eq(#PlayerGui:GetChildren(), 15, "ScreenGuis")
+	eq(#PlayerGui:GetChildren(), 16, "ScreenGuis")
 	eq(#PlayerGui.MainUI.Menu:GetChildren(), 6, "4 menu buttons + list layout + auto scale")
 end)
 
@@ -2516,6 +2516,41 @@ test("roofs fade out while you stand inside and come back outside", function()
 	eq(storeRoof.StoreRoof.LocalTransparencyModifier, 1, "store roof did not fade inside")
 	H.fire(player, "Visit", "Home")
 	H.advance(1)
+end)
+
+test("admin panel: owner only, every action works", function()
+	calm()
+	local admin = PlayerGui.AdminUI.AdminButton
+	check(not admin.Visible, "the admin button must be hidden for non-admins")
+	-- a non-admin's requests are ignored
+	local coins = data.coins
+	H.fire(player, "Admin", "Coins", 999999)
+	eq(data.coins, coins, "a non-admin got admin coins")
+	-- make this player the owner
+	local Admin = service("AdminServer")
+	shared("Config").AdminUserIds = { player.UserId }
+	run(Admin.playerAdded, player)
+	H.advance(0.5)
+	check(admin.Visible, "the admin button should show for the owner")
+	click(admin)
+	local root = windowOf("AdminUI", "Admin")
+	check(root.Visible)
+	click(find(root, "Coins1"))
+	eq(data.coins, coins + 10000, "+10,000 coins did nothing")
+	local age = data.age
+	click(find(root, "AgeUp3"))
+	check(data.age == math.min(25, age + 1), "age up did nothing")
+	click(find(root, "AllItems5"))
+	eq(count(data.inventory), #ClothingSystem.List, "not every item unlocked")
+	click(find(root, "FillNeeds6"))
+	eq(data.meters.hunger, 100)
+	click(find(root, "ResetDaily9"))
+	eq(data.daily.lastClaimDay, 0)
+	H.fire(player, "Admin", "Nonsense", {})
+	shared("Config").AdminUserIds = {}
+	run(Admin.playerAdded, player)
+	State.close()
+	H.advance(8)
 end)
 
 test("fuzz: mashing every visible button never errors", function()

@@ -75,6 +75,11 @@ Config.BradyFollowSpeed = 19
 -- Day / night ---------------------------------------------------------
 Config.DayLength = 900 -- seconds for one full day + night (players can turn it off)
 
+-- Admin panel ---------------------------------------------------------
+-- The game's owner (or group owner) is always an admin. Add extra
+-- user ids here to give other people the admin panel.
+Config.AdminUserIds = {}
+
 -- Testing -------------------------------------------------------------
 -- When true, everyone is treated as owning every gamepass inside Studio.
 Config.StudioOwnsAllPasses = false

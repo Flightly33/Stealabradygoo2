@@ -111,7 +111,7 @@ local function applyQuality(low)
 		rays.Enabled = not low
 	end
 	if bloom then
-		bloom.Intensity = low and 0.3 or 0.55
+		bloom.Intensity = low and 0.15 or 0.3
 	end
 	local terrain = Workspace:FindFirstChildOfClass("Terrain")
 	local clouds = terrain and terrain:FindFirstChildOfClass("Clouds")

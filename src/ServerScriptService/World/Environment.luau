@@ -92,16 +92,16 @@ function Environment.lighting()
 		Haze = 1.3,
 	})
 	make("BloomEffect", "Bloom", {
-		Intensity = 0.55,
+		Intensity = 0.3,
 		Size = 26,
-		Threshold = 1.4, -- only neon + bright highlights bloom
+		Threshold = 2, -- only neon + bright highlights bloom
 	})
 	make("SunRaysEffect", "SunRays", {
 		Intensity = 0.06,
 		Spread = 0.7,
 	})
 	make("ColorCorrectionEffect", "Grade", {
-		Brightness = 0.02,
+		Brightness = -0.02,
 		Contrast = 0.1,
 		Saturation = day.saturation,
 		TintColor = day.tint,

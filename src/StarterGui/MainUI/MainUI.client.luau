@@ -71,7 +71,7 @@ local BUTTONS = {
 	{ panel = "Brady", icon = "🧒", text = "Brady", color = C.goo },
 	{ panel = "Wardrobe", icon = "👕", text = "Closet", color = C.pink },
 	{ panel = "Shop", icon = "🛒", text = "Shop", color = C.gold },
-	{ panel = "More", icon = "☰", text = "More", color = C.sub },
+	{ panel = "More", icon = "📂", text = "More", color = C.sub },
 }
 local MORE = {
 	{ panel = "Fashion", icon = "🌟", text = "Fashion Show" },

@@ -4981,6 +4981,11 @@ Config.BradyFollowSpeed = 19
 -- Day / night ---------------------------------------------------------
 Config.DayLength = 900 -- seconds for one full day + night (players can turn it off)
 
+-- Admin panel ---------------------------------------------------------
+-- The game's owner (or group owner) is always an admin. Add extra
+-- user ids here to give other people the admin panel.
+Config.AdminUserIds = {}
+
 -- Testing -------------------------------------------------------------
 -- When true, everyone is treated as owning every gamepass inside Studio.
 Config.StudioOwnsAllPasses = false
@@ -6416,6 +6421,7 @@ Remotes.Events = {
 	"Visit", -- (userId | "Home" | "Plaza" | "Runway")
 	"Hype", -- (userId)
 	"Rebirth", -- ()
+	"Admin", -- (action, arg) owner only, checked on the server
 }
 
 Remotes.Functions = {
@@ -6679,23 +6685,23 @@ TimeOfDay.Length = Config.DayLength
 
 -- Lighting palettes LightingClient blends between.
 TimeOfDay.Day = {
-	brightness = 2.6,
+	brightness = 1.7,
 	ambient = rgb(92, 94, 112),
 	outdoor = rgb(142, 142, 158),
 	tint = rgb(255, 250, 240),
 	atmosphere = rgb(199, 214, 240),
 	decay = rgb(110, 132, 178),
-	exposure = 0.1,
+	exposure = -0.2,
 	saturation = 0.2,
 }
 TimeOfDay.Night = {
-	brightness = 1.1,
+	brightness = 0.8,
 	ambient = rgb(70, 78, 122),
 	outdoor = rgb(84, 92, 140),
 	tint = rgb(196, 210, 255),
 	atmosphere = rgb(70, 82, 130),
 	decay = rgb(40, 46, 86),
-	exposure = 0.45,
+	exposure = 0.2,
 	saturation = 0.05,
 }
 -- Golden-hour tint blended in around sunrise / sunset.
@@ -6954,6 +6960,7 @@ local LOAD_ORDER = {
 	{ "Fashion", "FashionServer" },
 	{ "Collection", "CollectionServer" },
 	{ "Social", "SocialServer" },
+	{ "Admin", "AdminServer" },
 }
 
 local ordered = {}
@@ -7116,6 +7123,129 @@ return AchievementServer
         </Properties>
       </Item>
       <Item class="ModuleScript" referent="41">
+        <Properties>
+          <string name="Name">AdminServer</string>
+          <string name="Source"><![CDATA[--[[
+	AdminServer
+	Owner-only cheat panel for testing and running the game.
+
+	Who is an admin (checked on the SERVER for every single request):
+	  * the experience owner (or the owner of the group that owns it)
+	  * any user id listed in Config.AdminUserIds
+	  * anyone playing inside Roblox Studio
+	Non-admins never even see the button, and requests they send are ignored.
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Modules = ReplicatedStorage.Modules
+local AgeSystem = require(Modules.AgeSystem)
+local ClothingSystem = require(Modules.ClothingSystem)
+local Config = require(Modules.Config)
+local EventSystem = require(Modules.EventSystem)
+local FurnitureSystem = require(Modules.FurnitureSystem)
+
+local AdminServer = {}
+
+local S
+
+local function isAdmin(player)
+	if RunService:IsStudio() or table.find(Config.AdminUserIds, player.UserId) then
+		return true
+	end
+	if game.CreatorType == Enum.CreatorType.User then
+		return player.UserId == game.CreatorId
+	end
+	local ok, rank = pcall(function()
+		return player:GetRankInGroup(game.CreatorId)
+	end)
+	return ok and rank == 255
+end
+
+-- action -> function(player, data, arg)
+local ACTIONS = {}
+
+function ACTIONS.Coins(player, _data, amount)
+	amount = tonumber(amount) or 10000
+	S.Currency.add(player, math.clamp(math.floor(amount), 1, 1e9), "admin")
+end
+
+function ACTIONS.AgeUp(player, data)
+	if data.age < AgeSystem.MaxAge then
+		S.Age.addXP(player, AgeSystem.totalXPForAge(data.age + 1) - data.ageXP, { raw = true })
+	end
+end
+
+function ACTIONS.MaxAge(player, data)
+	S.Age.addXP(player, AgeSystem.MaxXP - data.ageXP, { raw = true })
+end
+
+function ACTIONS.AllItems(player, data)
+	for _, item in ipairs(ClothingSystem.List) do
+		data.inventory[item.id] = true
+	end
+	for _, def in ipairs(FurnitureSystem.List) do
+		data.furniture.owned[def.id] = math.max(data.furniture.owned[def.id] or 0, 3)
+	end
+	S.Data.sync(player, "inventory", "furniture")
+	S.Achievements.check(player)
+	S.Net.toast(player, "all items unlocked", "good")
+end
+
+function ACTIONS.FillNeeds(player, data)
+	data.meters = { hunger = 100, clean = 100, energy = 100, fun = 100 }
+	S.Data.sync(player, "meters")
+end
+
+function ACTIONS.Event(player, _data, id)
+	if type(id) ~= "string" or not EventSystem.get(id) then
+		local list = EventSystem.List
+		id = list[math.random(1, #list)].id
+	end
+	if not S.Events.force(player, id) then
+		S.Net.toast(player, "an event is already running", "bad")
+	end
+end
+
+function ACTIONS.Secret()
+	S.Collection.forceSecret()
+end
+
+function ACTIONS.ResetDaily(player, data)
+	data.daily.lastClaimDay = 0
+	S.Data.sync(player, "daily")
+	S.Net.toast(player, "daily reward can be claimed again", "good")
+end
+
+function AdminServer.init(services)
+	S = services
+	S.Net.on("Admin", function(player, data, action, arg)
+		if not isAdmin(player) then
+			return
+		end
+		local fn = type(action) == "string" and ACTIONS[action]
+		if fn then
+			fn(player, data, arg)
+		end
+	end, 10)
+end
+
+function AdminServer.playerAdded(player)
+	local session = S.Data.session(player)
+	session.isAdmin = isAdmin(player)
+	S.Data.syncSession(player, "isAdmin")
+end
+
+AdminServer.isAdmin = isAdmin
+local _ = Players
+
+return AdminServer
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="42">
         <Properties>
           <string name="Name">AgeServer</string>
           <string name="Source"><![CDATA[--[[
@@ -7323,7 +7453,7 @@ return AgeServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="42">
+      <Item class="ModuleScript" referent="43">
         <Properties>
           <string name="Name">BradyServer</string>
           <string name="Source"><![CDATA[--[[
@@ -7883,7 +8013,7 @@ return BradyServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="43">
+      <Item class="ModuleScript" referent="44">
         <Properties>
           <string name="Name">CareServer</string>
           <string name="Source"><![CDATA[--[[
@@ -8396,7 +8526,7 @@ return CareServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="44">
+      <Item class="ModuleScript" referent="45">
         <Properties>
           <string name="Name">ClothingServer</string>
           <string name="Source"><![CDATA[--[[
@@ -8580,7 +8710,7 @@ return ClothingServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="45">
+      <Item class="ModuleScript" referent="46">
         <Properties>
           <string name="Name">CollectionServer</string>
           <string name="Source"><![CDATA[--[[
@@ -8869,7 +8999,7 @@ return CollectionServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="46">
+      <Item class="ModuleScript" referent="47">
         <Properties>
           <string name="Name">CurrencyServer</string>
           <string name="Source"><![CDATA[--[[
@@ -8937,7 +9067,7 @@ return CurrencyServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="47">
+      <Item class="ModuleScript" referent="48">
         <Properties>
           <string name="Name">DailyServer</string>
           <string name="Source"><![CDATA[--[[
@@ -9110,7 +9240,7 @@ return DailyServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="48">
+      <Item class="ModuleScript" referent="49">
         <Properties>
           <string name="Name">DataServer</string>
           <string name="Source"><![CDATA[--[[
@@ -9484,7 +9614,7 @@ return DataServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="49">
+      <Item class="ModuleScript" referent="50">
         <Properties>
           <string name="Name">EventServer</string>
           <string name="Source"><![CDATA[--[[
@@ -9870,7 +10000,7 @@ return EventServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="50">
+      <Item class="ModuleScript" referent="51">
         <Properties>
           <string name="Name">FashionServer</string>
           <string name="Source"><![CDATA[--[[
@@ -10311,7 +10441,7 @@ return FashionServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="51">
+      <Item class="ModuleScript" referent="52">
         <Properties>
           <string name="Name">GiftServer</string>
           <string name="Source"><![CDATA[--[[
@@ -10404,7 +10534,7 @@ return GiftServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="52">
+      <Item class="ModuleScript" referent="53">
         <Properties>
           <string name="Name">HouseServer</string>
           <string name="Source"><![CDATA[--[[
@@ -10827,7 +10957,7 @@ return HouseServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="53">
+      <Item class="ModuleScript" referent="54">
         <Properties>
           <string name="Name">MinigameServer</string>
           <string name="Source"><![CDATA[--[[
@@ -11088,7 +11218,7 @@ return MinigameServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="54">
+      <Item class="ModuleScript" referent="55">
         <Properties>
           <string name="Name">MonetizationServer</string>
           <string name="Source"><![CDATA[--[[
@@ -11171,7 +11301,7 @@ return MonetizationServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="55">
+      <Item class="ModuleScript" referent="56">
         <Properties>
           <string name="Name">Net</string>
           <string name="Source"><![CDATA[--[[
@@ -11284,7 +11414,7 @@ return Net
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="56">
+      <Item class="ModuleScript" referent="57">
         <Properties>
           <string name="Name">ShopServer</string>
           <string name="Source"><![CDATA[--[[
@@ -11426,7 +11556,7 @@ return ShopServer
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="57">
+      <Item class="ModuleScript" referent="58">
         <Properties>
           <string name="Name">SocialServer</string>
           <string name="Source"><![CDATA[--[[
@@ -11646,11 +11776,11 @@ return SocialServer
         </Properties>
       </Item>
     </Item>
-    <Item class="Folder" referent="58">
+    <Item class="Folder" referent="59">
       <Properties>
         <string name="Name">World</string>
       </Properties>
-      <Item class="ModuleScript" referent="59">
+      <Item class="ModuleScript" referent="60">
         <Properties>
           <string name="Name">Environment</string>
           <string name="Source"><![CDATA[--[[
@@ -11747,16 +11877,16 @@ function Environment.lighting()
 		Haze = 1.3,
 	})
 	make("BloomEffect", "Bloom", {
-		Intensity = 0.55,
+		Intensity = 0.3,
 		Size = 26,
-		Threshold = 1.4, -- only neon + bright highlights bloom
+		Threshold = 2, -- only neon + bright highlights bloom
 	})
 	make("SunRaysEffect", "SunRays", {
 		Intensity = 0.06,
 		Spread = 0.7,
 	})
 	make("ColorCorrectionEffect", "Grade", {
-		Brightness = 0.02,
+		Brightness = -0.02,
 		Contrast = 0.1,
 		Saturation = day.saturation,
 		TintColor = day.tint,
@@ -11924,7 +12054,7 @@ return Environment
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="60">
+      <Item class="ModuleScript" referent="61">
         <Properties>
           <string name="Name">HouseBuilder</string>
           <string name="Source"><![CDATA[--[[
@@ -12272,10 +12402,11 @@ function HouseBuilder.build(parent, plotCFrame, opts)
 	local sign = p("Sign", v3(math.min(16, size * 0.5), 2.2, 0.4), v3(0, 10.9, h + 1.1), DARK, { collide = false })
 	PartUtil.label(sign, (opts.ownerName or "?") .. "'s " .. AgeSystem.HouseNames[tier], { face = Enum.NormalId.Back, color = style.accent })
 	-- Ceiling light.
-	local lamp = p("CeilingLight", v3(0.5, 3, 3), v3(0, H - 0.4, 0), rgb(255, 244, 214), { shape = "Cylinder", rot = UP, material = "Neon", collide = false, shadow = false })
+	-- invisible light source: lights the room without a glowing blob on screen
+	local lamp = p("CeilingLight", v3(0.5, 3, 3), v3(0, H - 0.4, 0), rgb(255, 244, 214), { shape = "Cylinder", rot = UP, transparency = 1, collide = false, shadow = false })
 	local light = Instance.new("PointLight")
 	light.Range = math.min(60, size + 8)
-	light.Brightness = 1.1
+	light.Brightness = 0.6
 	light.Color = rgb(255, 244, 214)
 	light.Shadows = false
 	light.Parent = lamp
@@ -12463,7 +12594,7 @@ return HouseBuilder
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="61">
+      <Item class="ModuleScript" referent="62">
         <Properties>
           <string name="Name">MapBuilder</string>
           <string name="Source"><![CDATA[--[[
@@ -13374,23 +13505,84 @@ return MapBuilder
       </Item>
     </Item>
   </Item>
-  <Item class="SoundService" referent="62">
+  <Item class="SoundService" referent="63">
     <Properties>
       <string name="Name">SoundService</string>
     </Properties>
   </Item>
-  <Item class="StarterGui" referent="63">
+  <Item class="StarterGui" referent="64">
     <Properties>
       <string name="Name">StarterGui</string>
     </Properties>
-    <Item class="ScreenGui" referent="64">
+    <Item class="ScreenGui" referent="65">
+      <Properties>
+        <string name="Name">AdminUI</string>
+        <int name="DisplayOrder">9</int>
+        <bool name="ResetOnSpawn">false</bool>
+        <token name="ZIndexBehavior">1</token>
+      </Properties>
+      <Item class="LocalScript" referent="66">
+        <Properties>
+          <string name="Name">AdminUI</string>
+          <string name="Source"><![CDATA[--[[
+	AdminUI
+	Small owner-only panel. The button only appears when the server says this
+	player is an admin; the server re-checks every request anyway.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Client = ReplicatedStorage:WaitForChild("Client")
+local State = require(Client:WaitForChild("ClientState"))
+local UI = require(Client:WaitForChild("UI"))
+
+local gui = script.Parent
+local C = UI.Colors
+
+State.wait()
+
+local window = UI.window(gui, { name = "Admin", title = "🛠️ Admin", width = 420, height = 470 })
+local list = UI.scroll(window.body, { Name = "List" })
+UI.grid(list, 186, 52, 8)
+
+local ACTIONS = {
+	{ "Coins", "+10,000 coins", C.gold, 10000 },
+	{ "Coins", "+1,000,000 coins", C.gold, 1000000 },
+	{ "AgeUp", "Age up +1", C.goo },
+	{ "MaxAge", "Max age (25)", C.goo },
+	{ "AllItems", "Unlock all items", C.pink },
+	{ "FillNeeds", "Fill all needs", C.blue },
+	{ "Event", "Random event", C.purple },
+	{ "Secret", "Spawn secret item", C.purple },
+	{ "ResetDaily", "Reset daily reward", C.sub },
+}
+for index, def in ipairs(ACTIONS) do
+	UI.button(list, def[2], { Name = def[1] .. index, Size = UDim2.fromOffset(186, 52), Color = def[3], TextSize = 17, LayoutOrder = index }, function()
+		State.send("Admin", def[1], def[4])
+	end)
+end
+
+local button = UI.button(gui, "🛠️", { Name = "AdminButton", Size = UDim2.fromOffset(52, 52), Position = UDim2.new(1, -12, 1, -12), AnchorPoint = Vector2.new(1, 1), Color = C.red, TextSize = 26 }, function()
+	State.toggle("Admin")
+end)
+UI.autoScale(button, "hud")
+button.Visible = false
+
+State.onSession("isAdmin", function(isAdmin)
+	button.Visible = isAdmin == true
+end)
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+    <Item class="ScreenGui" referent="67">
       <Properties>
         <string name="Name">AgeUI</string>
         <int name="DisplayOrder">12</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="65">
+      <Item class="LocalScript" referent="68">
         <Properties>
           <string name="Name">AgeUI</string>
           <string name="Source"><![CDATA[--[[
@@ -13526,14 +13718,14 @@ end)
         </Properties>
       </Item>
     </Item>
-    <Item class="ScreenGui" referent="66">
+    <Item class="ScreenGui" referent="69">
       <Properties>
         <string name="Name">BradyUI</string>
         <int name="DisplayOrder">5</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="67">
+      <Item class="LocalScript" referent="70">
         <Properties>
           <string name="Name">BradyUI</string>
           <string name="Source"><![CDATA[--[[
@@ -13741,14 +13933,14 @@ end)
         </Properties>
       </Item>
     </Item>
-    <Item class="ScreenGui" referent="68">
+    <Item class="ScreenGui" referent="71">
       <Properties>
         <string name="Name">CollectionUI</string>
         <int name="DisplayOrder">5</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="69">
+      <Item class="LocalScript" referent="72">
         <Properties>
           <string name="Name">CollectionUI</string>
           <string name="Source"><![CDATA[--[[
@@ -13964,14 +14156,14 @@ State.onSession("day", refresh)
         </Properties>
       </Item>
     </Item>
-    <Item class="ScreenGui" referent="70">
+    <Item class="ScreenGui" referent="73">
       <Properties>
         <string name="Name">DailyUI</string>
         <int name="DisplayOrder">8</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="71">
+      <Item class="LocalScript" referent="74">
         <Properties>
           <string name="Name">DailyUI</string>
           <string name="Source"><![CDATA[--[[
@@ -14018,14 +14210,14 @@ end)
         </Properties>
       </Item>
     </Item>
-    <Item class="ScreenGui" referent="72">
+    <Item class="ScreenGui" referent="75">
       <Properties>
         <string name="Name">FashionUI</string>
         <int name="DisplayOrder">5</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="73">
+      <Item class="LocalScript" referent="76">
         <Properties>
           <string name="Name">FashionUI</string>
           <string name="Source"><![CDATA[--[[
@@ -14211,14 +14403,14 @@ end)
         </Properties>
       </Item>
     </Item>
-    <Item class="ScreenGui" referent="74">
+    <Item class="ScreenGui" referent="77">
       <Properties>
         <string name="Name">InventoryUI</string>
         <int name="DisplayOrder">5</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="75">
+      <Item class="LocalScript" referent="78">
         <Properties>
           <string name="Name">InventoryUI</string>
           <string name="Source"><![CDATA[--[[
@@ -14395,14 +14587,14 @@ State.on("age", refresh)
         </Properties>
       </Item>
     </Item>
-    <Item class="ScreenGui" referent="76">
+    <Item class="ScreenGui" referent="79">
       <Properties>
         <string name="Name">MainUI</string>
         <int name="DisplayOrder">1</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="77">
+      <Item class="LocalScript" referent="80">
         <Properties>
           <string name="Name">MainUI</string>
           <string name="Source"><![CDATA[--[[
@@ -14478,7 +14670,7 @@ local BUTTONS = {
 	{ panel = "Brady", icon = "🧒", text = "Brady", color = C.goo },
 	{ panel = "Wardrobe", icon = "👕", text = "Closet", color = C.pink },
 	{ panel = "Shop", icon = "🛒", text = "Shop", color = C.gold },
-	{ panel = "More", icon = "☰", text = "More", color = C.sub },
+	{ panel = "More", icon = "📂", text = "More", color = C.sub },
 }
 local MORE = {
 	{ panel = "Fashion", icon = "🌟", text = "Fashion Show" },
@@ -14877,14 +15069,14 @@ end)
         </Properties>
       </Item>
     </Item>
-    <Item class="ScreenGui" referent="78">
+    <Item class="ScreenGui" referent="81">
       <Properties>
         <string name="Name">MinigameUI</string>
         <int name="DisplayOrder">20</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="79">
+      <Item class="LocalScript" referent="82">
         <Properties>
           <string name="Name">MinigameUI</string>
           <string name="Source"><![CDATA[--[[
@@ -15381,14 +15573,14 @@ State.on("age", refresh)
         </Properties>
       </Item>
     </Item>
-    <Item class="ScreenGui" referent="80">
+    <Item class="ScreenGui" referent="83">
       <Properties>
         <string name="Name">MirrorUI</string>
         <int name="DisplayOrder">6</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="81">
+      <Item class="LocalScript" referent="84">
         <Properties>
           <string name="Name">MirrorUI</string>
           <string name="Source"><![CDATA[--[[
@@ -15610,14 +15802,14 @@ end)
         </Properties>
       </Item>
     </Item>
-    <Item class="ScreenGui" referent="82">
+    <Item class="ScreenGui" referent="85">
       <Properties>
         <string name="Name">RoomUI</string>
         <int name="DisplayOrder">5</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="83">
+      <Item class="LocalScript" referent="86">
         <Properties>
           <string name="Name">RoomUI</string>
           <string name="Source"><![CDATA[--[[
@@ -16037,14 +16229,14 @@ State.on("age", refresh)
         </Properties>
       </Item>
     </Item>
-    <Item class="ScreenGui" referent="84">
+    <Item class="ScreenGui" referent="87">
       <Properties>
         <string name="Name">SettingsUI</string>
         <int name="DisplayOrder">5</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="85">
+      <Item class="LocalScript" referent="88">
         <Properties>
           <string name="Name">SettingsUI</string>
           <string name="Source"><![CDATA[--[[
@@ -16141,14 +16333,14 @@ State.onSession("passes", refresh)
         </Properties>
       </Item>
     </Item>
-    <Item class="ScreenGui" referent="86">
+    <Item class="ScreenGui" referent="89">
       <Properties>
         <string name="Name">ShopUI</string>
         <int name="DisplayOrder">5</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="87">
+      <Item class="LocalScript" referent="90">
         <Properties>
           <string name="Name">ShopUI</string>
           <string name="Source"><![CDATA[--[[
@@ -16517,14 +16709,14 @@ end)
         </Properties>
       </Item>
     </Item>
-    <Item class="ScreenGui" referent="88">
+    <Item class="ScreenGui" referent="91">
       <Properties>
         <string name="Name">SocialUI</string>
         <int name="DisplayOrder">5</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="89">
+      <Item class="LocalScript" referent="92">
         <Properties>
           <string name="Name">SocialUI</string>
           <string name="Source"><![CDATA[--[[
@@ -16643,14 +16835,14 @@ window.onShow(show)
         </Properties>
       </Item>
     </Item>
-    <Item class="ScreenGui" referent="90">
+    <Item class="ScreenGui" referent="93">
       <Properties>
         <string name="Name">TutorialUI</string>
         <int name="DisplayOrder">30</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="91">
+      <Item class="LocalScript" referent="94">
         <Properties>
           <string name="Name">TutorialUI</string>
           <string name="Source"><![CDATA[--[[
@@ -16853,14 +17045,14 @@ end)
         </Properties>
       </Item>
     </Item>
-    <Item class="ScreenGui" referent="92">
+    <Item class="ScreenGui" referent="95">
       <Properties>
         <string name="Name">WardrobeUI</string>
         <int name="DisplayOrder">5</int>
         <bool name="ResetOnSpawn">false</bool>
         <token name="ZIndexBehavior">1</token>
       </Properties>
-      <Item class="LocalScript" referent="93">
+      <Item class="LocalScript" referent="96">
         <Properties>
           <string name="Name">WardrobeUI</string>
           <string name="Source"><![CDATA[--[[
@@ -17086,15 +17278,15 @@ State.onSession("passes", refresh)
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="94">
+  <Item class="StarterPlayer" referent="97">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="95">
+    <Item class="StarterPlayerScripts" referent="98">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="96">
+      <Item class="LocalScript" referent="99">
         <Properties>
           <string name="Name">BradyClient</string>
           <string name="Source"><![CDATA[--[[
@@ -17346,7 +17538,7 @@ end)
 ]]></string>
         </Properties>
       </Item>
-      <Item class="LocalScript" referent="97">
+      <Item class="LocalScript" referent="100">
         <Properties>
           <string name="Name">LightingClient</string>
           <string name="Source"><![CDATA[--[[
@@ -17462,7 +17654,7 @@ local function applyQuality(low)
 		rays.Enabled = not low
 	end
 	if bloom then
-		bloom.Intensity = low and 0.3 or 0.55
+		bloom.Intensity = low and 0.15 or 0.3
 	end
 	local terrain = Workspace:FindFirstChildOfClass("Terrain")
 	local clouds = terrain and terrain:FindFirstChildOfClass("Clouds")
@@ -17524,7 +17716,7 @@ end)
 ]]></string>
         </Properties>
       </Item>
-      <Item class="LocalScript" referent="98">
+      <Item class="LocalScript" referent="101">
         <Properties>
           <string name="Name">WorldClient</string>
           <string name="Source"><![CDATA[--[[
@@ -17544,6 +17736,7 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 local Client = ReplicatedStorage:WaitForChild("Client")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
@@ -17608,6 +17801,91 @@ task.spawn(function()
 				end
 			end
 		end
+	end
+end)
+
+----------------------------------------------------------------------
+-- Walls: while you are inside a house, any wall between the camera and the
+-- room fades to see-through, so the camera never gets blocked.
+----------------------------------------------------------------------
+local WALL_NAMES = {
+	Wall = true, WallLining = true, Baseboard = true, Crown = true, Window = true, WindowFrame = true,
+	WindowSill = true, Mullion = true, FlowerBox = true, BoxFlower = true, Post = true, DoorFrame = true,
+	DoorJamb = true, Door = true, DoorKnob = true, PorchLantern = true, PorchBulb = true, Sign = true,
+}
+local houseWalls = {} -- [house model] = { parts }
+local fadedWalls = {} -- [part] = true
+
+local function wallsOf(house)
+	local list = houseWalls[house]
+	if not list then
+		list = {}
+		for _, child in ipairs(house:GetChildren()) do
+			if child:IsA("BasePart") and WALL_NAMES[child.Name] then
+				table.insert(list, child)
+			end
+		end
+		houseWalls[house] = list
+	end
+	return list
+end
+
+local function setWall(part, faded)
+	if (fadedWalls[part] == true) == faded then
+		return
+	end
+	fadedWalls[part] = faded or nil
+	part.LocalTransparencyModifier = faded and 0.75 or 0
+end
+
+local function updateWalls()
+	local camera = Workspace.CurrentCamera
+	local character = localPlayer.Character
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
+	local insideZone
+	if camera and hrp then
+		for zone in pairs(hiddenRoofs) do
+			local house = zone.Parent and zone.Parent.Parent
+			if house and house.Parent and house.Parent.Name == "Houses" then
+				insideZone = zone
+				break
+			end
+		end
+	end
+	local keep = {}
+	if insideZone then
+		local house = insideZone.Parent.Parent
+		local half = insideZone.Size / 2
+		local cam = insideZone.CFrame:PointToObjectSpace(camera.CFrame.Position)
+		for _, part in ipairs(wallsOf(house)) do
+			local p = insideZone.CFrame:PointToObjectSpace(part.CFrame.Position)
+			-- which side of the room is this wall on, and is the camera out past it?
+			local onX = math.abs(p.X) > half.X - 2.5 and math.sign(p.X) == math.sign(cam.X) and math.abs(cam.X) > half.X - 4
+			local onZ = math.abs(p.Z) > half.Z - 2.5 and math.sign(p.Z) == math.sign(cam.Z) and math.abs(cam.Z) > half.Z - 4
+			if onX or onZ then
+				keep[part] = true
+			end
+		end
+	end
+	for part in pairs(fadedWalls) do
+		if not keep[part] or not part.Parent then
+			setWall(part, false)
+		end
+	end
+	for part in pairs(keep) do
+		setWall(part, true)
+	end
+	for house in pairs(houseWalls) do
+		if not house.Parent then
+			houseWalls[house] = nil
+		end
+	end
+end
+
+task.spawn(function()
+	while true do
+		task.wait(0.1)
+		pcall(updateWalls)
 	end
 end)
 
@@ -17703,13 +17981,13 @@ end
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="99">
+  <Item class="Workspace" referent="102">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>
       <bool name="StreamingEnabled">false</bool>
     </Properties>
-    <Item class="Part" referent="100">
+    <Item class="Part" referent="103">
       <Properties>
         <string name="Name">SafetyFloor</string>
         <bool name="Anchored">true</bool>

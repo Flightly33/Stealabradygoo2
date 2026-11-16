@@ -119,6 +119,15 @@ The top of the screen only shows Goo Coins and the Age bar. The fashion-show
 ticker appears only while a show is running, and red dots point you to
 anything waiting (low needs, a daily reward, an open show).
 
+### Admin panel
+
+The game owner (or the owner of the group that owns it) sees a red 🛠️ button
+in the bottom-right corner: coins, age up / max age, unlock all items, fill
+needs, start a random event, spawn a secret item, reset the daily reward.
+It also shows for everyone while testing in Studio. To give other people
+access, add their user ids to `Config.AdminUserIds`. Every request is
+re-checked on the server, so nobody else can use it.
+
 ---
 
 ## Graphics

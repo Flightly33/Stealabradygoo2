@@ -50,6 +50,7 @@ Remotes.Events = {
 	"Visit", -- (userId | "Home" | "Plaza" | "Runway")
 	"Hype", -- (userId)
 	"Rebirth", -- ()
+	"Admin", -- (action, arg) owner only, checked on the server
 }
 
 Remotes.Functions = {

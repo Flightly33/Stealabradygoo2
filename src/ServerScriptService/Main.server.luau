@@ -45,6 +45,7 @@ local LOAD_ORDER = {
 	{ "Fashion", "FashionServer" },
 	{ "Collection", "CollectionServer" },
 	{ "Social", "SocialServer" },
+	{ "Admin", "AdminServer" },
 }
 
 local ordered = {}

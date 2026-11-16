@@ -343,10 +343,11 @@ function HouseBuilder.build(parent, plotCFrame, opts)
 	local sign = p("Sign", v3(math.min(16, size * 0.5), 2.2, 0.4), v3(0, 10.9, h + 1.1), DARK, { collide = false })
 	PartUtil.label(sign, (opts.ownerName or "?") .. "'s " .. AgeSystem.HouseNames[tier], { face = Enum.NormalId.Back, color = style.accent })
 	-- Ceiling light.
-	local lamp = p("CeilingLight", v3(0.5, 3, 3), v3(0, H - 0.4, 0), rgb(255, 244, 214), { shape = "Cylinder", rot = UP, material = "Neon", collide = false, shadow = false })
+	-- invisible light source: lights the room without a glowing blob on screen
+	local lamp = p("CeilingLight", v3(0.5, 3, 3), v3(0, H - 0.4, 0), rgb(255, 244, 214), { shape = "Cylinder", rot = UP, transparency = 1, collide = false, shadow = false })
 	local light = Instance.new("PointLight")
 	light.Range = math.min(60, size + 8)
-	light.Brightness = 1.1
+	light.Brightness = 0.6
 	light.Color = rgb(255, 244, 214)
 	light.Shadows = false
 	light.Parent = lamp

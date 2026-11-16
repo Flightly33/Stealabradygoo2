@@ -15,6 +15,7 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 local Client = ReplicatedStorage:WaitForChild("Client")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
@@ -79,6 +80,91 @@ task.spawn(function()
 				end
 			end
 		end
+	end
+end)
+
+----------------------------------------------------------------------
+-- Walls: while you are inside a house, any wall between the camera and the
+-- room fades to see-through, so the camera never gets blocked.
+----------------------------------------------------------------------
+local WALL_NAMES = {
+	Wall = true, WallLining = true, Baseboard = true, Crown = true, Window = true, WindowFrame = true,
+	WindowSill = true, Mullion = true, FlowerBox = true, BoxFlower = true, Post = true, DoorFrame = true,
+	DoorJamb = true, Door = true, DoorKnob = true, PorchLantern = true, PorchBulb = true, Sign = true,
+}
+local houseWalls = {} -- [house model] = { parts }
+local fadedWalls = {} -- [part] = true
+
+local function wallsOf(house)
+	local list = houseWalls[house]
+	if not list then
+		list = {}
+		for _, child in ipairs(house:GetChildren()) do
+			if child:IsA("BasePart") and WALL_NAMES[child.Name] then
+				table.insert(list, child)
+			end
+		end
+		houseWalls[house] = list
+	end
+	return list
+end
+
+local function setWall(part, faded)
+	if (fadedWalls[part] == true) == faded then
+		return
+	end
+	fadedWalls[part] = faded or nil
+	part.LocalTransparencyModifier = faded and 0.75 or 0
+end
+
+local function updateWalls()
+	local camera = Workspace.CurrentCamera
+	local character = localPlayer.Character
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
+	local insideZone
+	if camera and hrp then
+		for zone in pairs(hiddenRoofs) do
+			local house = zone.Parent and zone.Parent.Parent
+			if house and house.Parent and house.Parent.Name == "Houses" then
+				insideZone = zone
+				break
+			end
+		end
+	end
+	local keep = {}
+	if insideZone then
+		local house = insideZone.Parent.Parent
+		local half = insideZone.Size / 2
+		local cam = insideZone.CFrame:PointToObjectSpace(camera.CFrame.Position)
+		for _, part in ipairs(wallsOf(house)) do
+			local p = insideZone.CFrame:PointToObjectSpace(part.CFrame.Position)
+			-- which side of the room is this wall on, and is the camera out past it?
+			local onX = math.abs(p.X) > half.X - 2.5 and math.sign(p.X) == math.sign(cam.X) and math.abs(cam.X) > half.X - 4
+			local onZ = math.abs(p.Z) > half.Z - 2.5 and math.sign(p.Z) == math.sign(cam.Z) and math.abs(cam.Z) > half.Z - 4
+			if onX or onZ then
+				keep[part] = true
+			end
+		end
+	end
+	for part in pairs(fadedWalls) do
+		if not keep[part] or not part.Parent then
+			setWall(part, false)
+		end
+	end
+	for part in pairs(keep) do
+		setWall(part, true)
+	end
+	for house in pairs(houseWalls) do
+		if not house.Parent then
+			houseWalls[house] = nil
+		end
+	end
+end
+
+task.spawn(function()
+	while true do
+		task.wait(0.1)
+		pcall(updateWalls)
 	end
 end)
 
