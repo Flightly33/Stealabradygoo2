@@ -130,6 +130,13 @@ Environment.paint = function(cframe, size, material)
 	end
 end
 
+-- Removes terrain in a box whose top is at y = 0 (and a little above it).
+Environment.carve = function(cframe, size)
+	if terrain then
+		terrain:FillBlock(cframe * CFrame.new(0, -size.Y / 2 + 2, 0), v3(size.X, size.Y + 4, size.Z), M.Air)
+	end
+end
+
 local function hill(x, z, radius, height, material)
 	-- A dome: a ball sunk into the ground so only `height` studs show.
 	terrain:FillBall(v3(x, height - radius, z), radius, material or M.Grass)

@@ -131,7 +131,10 @@ function HouseBuilder.build(parent, plotCFrame, opts)
 	-- terrain under the house + a paved walkway out to the street
 	local plotHalf = Config.PlotSize / 2
 	Environment.paint(plotCFrame, v3(Config.PlotSize - 4, 4, Config.PlotSize - 4), Enum.Material.Grass)
-	Environment.paint(plotCFrame, v3(size + 6, 4, size + 6), Enum.Material.Ground)
+	-- Carve the terrain out under the house (8 studs deep). Terrain is voxel
+	-- based and smooths upward, so any terrain left under the floor pokes
+	-- through it. The floor + foundation parts cover the hole.
+	Environment.carve(plotCFrame, v3(size + 2, 8, size + 2))
 	local walkStart, walkEnd = h + 3.5, plotHalf + 2
 	if walkEnd > walkStart then
 		local walkMid, walkLen = (walkStart + walkEnd) / 2, walkEnd - walkStart
